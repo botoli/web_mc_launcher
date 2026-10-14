@@ -266,6 +266,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
           size.document <= 1 && size.content <= 1 && size.horizontal <= 1,
           `${width}×${height} ${route}: ${JSON.stringify(size)}`,
         );
+        if (width === 1366 && route === "/") await screenshot("dashboard-compact.png");
       }
     }
   });
