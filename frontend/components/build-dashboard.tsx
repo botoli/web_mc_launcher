@@ -346,7 +346,7 @@ export function BuildDashboard({
                 : "Файл лаунчера пока недоступен."}
             </p>
             {client.size > 0 ? (
-              <a className="button secondary full-width" href={client.url}>
+              <a className="button secondary full-width" href={new URL(client.url).pathname}>
                 <Download size={16} />
                 Скачать лаунчер
               </a>
