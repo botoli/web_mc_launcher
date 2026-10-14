@@ -3,8 +3,7 @@ node_modules/
 data/clients/
 data/mods/
 
-.env
-.env.local
+.env*
 frontend/.next/
 frontend/tsconfig.tsbuildinfo
 artifacts/
