@@ -4,3 +4,7 @@ data/clients/
 data/mods/
 
 .env
+.env.local
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
+artifacts/

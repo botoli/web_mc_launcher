@@ -427,4 +427,9 @@ html, body { height: 100%; overflow: hidden; }
   .build-aside { gap: 10px; }
   .sync-note p, .client-panel p { line-height: 1.6; }
   .sync-note a, .subtle-link { margin-top: 7px; }
+  .auth-main { padding: 20px 30px; }
+  .auth-form { padding: 18px 0; }
+  .auth-description { margin: 8px 0 18px; }
+  .auth-form .field { margin-bottom: 12px; }
+  .auth-main > footer { padding-top: 10px; }
 }

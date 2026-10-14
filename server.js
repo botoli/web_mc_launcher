@@ -6,6 +6,7 @@ const https = require('https');
 const http = require('http');
 const archiver = require('archiver');
 const crypto = require('crypto');
+const httpProxy = require('http-proxy');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -175,10 +176,9 @@ if (migrated) saveUsers();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload({ limits: { fileSize: 500 * 1024 * 1024 } }));
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
 app.use('/download', express.static(CLIENTS_DIR));
-app.use('/mods', express.static(MODS_DIR));
+// /mods is now a Next.js page; only actual files should be served here.
+app.use('/mods', express.static(MODS_DIR, { redirect: false, index: false }));
 
 // Cookie parser (manual, no external deps)
 app.use((req, res, next) => {
@@ -201,15 +201,6 @@ app.use((req, res, next) => {
         }
         return res.redirect(301, 'https://' + req.get('host') + req.url);
     }
-    next();
-});
-
-// Template locals
-app.use((req, res, next) => {
-    res.locals.currentPath = req.path;
-    res.locals.domain = DOMAIN;
-    res.locals.useHTTPS = USE_HTTPS;
-    res.locals.publicURL = publicURL;
     next();
 });
 
@@ -251,7 +242,7 @@ function adminRequired(req, res, next) {
 // Helper to set cookie
 function setCookie(res, name, value, options = {}) {
     let cookie = `${name}=${encodeURIComponent(value)}`;
-    if (options.maxAge) cookie += `; Max-Age=${options.maxAge}`;
+    if (options.maxAge !== undefined) cookie += `; Max-Age=${options.maxAge}`;
     if (options.httpOnly) cookie += '; HttpOnly';
     if (options.secure) cookie += '; Secure';
     if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
@@ -259,39 +250,12 @@ function setCookie(res, name, value, options = {}) {
     res.setHeader('Set-Cookie', cookie);
 }
 
-// ======================== Web UI: Player pages ========================
-app.get('/login', (req, res) => {
-    const token = req.cookies?.[COOKIE_NAME];
-    if (token && verifyToken(token)) return res.redirect('/profile');
-    res.render('login', { error: null, redirect: req.query.redirect || '' });
-});
-
-app.get('/register', (req, res) => {
-    const token = req.cookies?.[COOKIE_NAME];
-    if (token && verifyToken(token)) return res.redirect('/profile');
-    res.render('register', { error: null });
-});
-
-app.get('/profile', authRequired, (req, res) => {
-    const userData = users[req.user.login];
-    res.render('profile', {
-        login: req.user.login,
-        nickname: userData.nickname || req.user.login,
-        email: userData.email || '',
-        registrationStatus: userData.registrationStatus || 'pending',
-        registeredAt: userData.registeredAt,
-        lastLogin: userData.lastLogin,
-        error: null,
-        success: null
-    });
-});
-
-// ======================== Web UI: Admin dashboard ========================
-app.get('/', adminRequired, (req, res) => {
-    const modsList = fs.existsSync(MODS_DIR) ? fs.readdirSync(MODS_DIR).filter(f => f.endsWith('.jar')) : [];
+// Initial data for the Next.js dashboard. Existing launcher endpoints stay unchanged.
+app.get('/api/dashboard', adminRequired, (req, res) => {
+    const modsList = fs.existsSync(MODS_DIR) ? fs.readdirSync(MODS_DIR).filter(f => f.endsWith('.jar')).sort() : [];
     const buildConfig = getBuildConfig();
-    res.render('dashboard', {
-        mods: modsList,
+    res.json({
+        mods: modsList.map(name => ({ name, size: fs.statSync(path.join(MODS_DIR, name)).size })),
         versions: ['1.21.1', '1.20.1', '1.19.2', '1.18.2'],
         loaders: ['neoforge', 'forge', 'fabric', 'vanilla'],
         userCount: Object.keys(users).length,
@@ -300,7 +264,7 @@ app.get('/', adminRequired, (req, res) => {
         buildConfig: buildConfig,
         domain: DOMAIN,
         useHTTPS: USE_HTTPS,
-        users: users
+        publicURL
     });
 });
 
@@ -577,9 +541,37 @@ app.get('/api/status', (req, res) => {
     });
 });
 
+// Preserve page authorization and return URLs at the public Express entry point.
+app.get(['/', '/mods', '/players', '/profile'], authRequired, (req, res, next) => next());
+app.get(['/login', '/register'], (req, res, next) => {
+    const token = req.cookies?.[COOKIE_NAME];
+    if (token && verifyToken(token)) return res.redirect('/profile');
+    next();
+});
+
+// Next.js runs independently. Express remains the public entry point so DOMAIN,
+// PORT, HTTPS, cookies, launcher URLs and the data directory retain their meaning.
+const frontendProxy = httpProxy.createProxyServer({
+    target: `http://127.0.0.1:${process.env.FRONTEND_PORT || 3001}`,
+    ws: true,
+    xfwd: true
+});
+frontendProxy.on('error', (err, req, res) => {
+    if (res && typeof res.writeHead === 'function' && !res.headersSent) {
+        res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '3' });
+        res.end('Интерфейс запускается. Обновите страницу через несколько секунд.');
+    } else if (res && typeof res.destroy === 'function') {
+        res.destroy();
+    }
+});
+app.use('/api', (req, res) => res.status(404).json({ error: 'API endpoint not found' }));
+app.use((req, res) => frontendProxy.web(req, res));
+
 // ======================== Start server ========================
 function startServer() {
-    http.createServer(app).listen(PORT, '0.0.0.0', () => {
+    const httpServer = http.createServer(app);
+    httpServer.on('upgrade', (req, socket, head) => frontendProxy.ws(req, socket, head));
+    httpServer.listen(PORT, '0.0.0.0', () => {
         console.log(`[MCL] HTTP server on http://0.0.0.0:${PORT}`);
     });
 
@@ -591,7 +583,9 @@ function startServer() {
             key: fs.readFileSync(keyPath),
             cert: fs.readFileSync(certPath)
         };
-        https.createServer(httpsOptions, app).listen(HTTPS_PORT, '0.0.0.0', () => {
+        const httpsServer = https.createServer(httpsOptions, app);
+        httpsServer.on('upgrade', (req, socket, head) => frontendProxy.ws(req, socket, head));
+        httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
             console.log(`[MCL] HTTPS server on https://0.0.0.0:${HTTPS_PORT}`);
         });
         console.log(`[MCL] HTTPS active: https://${DOMAIN}`);
