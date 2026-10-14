@@ -8,3 +8,7 @@ data/mods/
 frontend/.next/
 frontend/tsconfig.tsbuildinfo
 artifacts/
+bot/.env
+data/telegram-auth-state.json
+data/telegram-auth-state.json.tmp
+data/users.json.tmp

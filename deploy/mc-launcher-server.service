@@ -1,0 +1,14 @@
+[Unit]
+Description=Minecraft Launcher Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mc-launcher-server
+ExecStart=/usr/bin/node /opt/mc-launcher-server/scripts/run.js start
+Restart=on-failure
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

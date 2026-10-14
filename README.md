@@ -74,6 +74,8 @@ data/clients/             Файлы для скачивания
 
 ## Проверки
 
+Telegram-авторизация лаунчера: [запуск отдельного бота, настройки и API](bot/README.md). Бот регистрирует игроков в общем `data/users.json`; вход разрешён при любом статусе, кроме `banned`.
+
 ```powershell
 npm.cmd run typecheck
 npm.cmd run build

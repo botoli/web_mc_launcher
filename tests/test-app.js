@@ -20,6 +20,7 @@ async function startTestApp() {
     let frontendPort = await freePort();
     while (frontendPort === backendPort) frontendPort = await freePort();
     await fs.copyFile(path.join(root, 'server.js'), path.join(fixture, 'server.js'));
+    await fs.copyFile(path.join(root, 'telegram-auth.js'), path.join(fixture, 'telegram-auth.js'));
     await fs.mkdir(path.join(fixture, 'data/mods'), { recursive: true });
     await fs.mkdir(path.join(fixture, 'data/clients'), { recursive: true });
     for (const name of ['jei-1.21.1-neoforge.jar', 'journeymap-1.21.1.jar', 'sodium-neoforge-0.6.13.jar']) {

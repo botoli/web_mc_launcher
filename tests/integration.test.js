@@ -239,6 +239,18 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await screenshot("players-desktop.png");
   });
 
+  await t.test("launcher auth permits pending and rejects banned users and tokens", async () => {
+    const credentials = { login: 'steve', password: 'test-password' };
+    await context.request.put(`${app.baseURL}/api/admin/players/steve/status`, { data: { status: 'pending' } });
+    const login = await (await post('/api/launcher-auth', credentials)).json();
+    assert.equal(login.success, true);
+    await context.request.put(`${app.baseURL}/api/admin/players/steve/status`, { data: { status: 'banned' } });
+    assert.equal((await post('/api/launcher-auth', credentials)).status, 403);
+    assert.equal((await post('/api/launcher-auth', { token: login.token })).status, 403);
+    assert.equal((await (await post('/api/verify', { token: login.token })).json()).valid, false);
+    await context.request.put(`${app.baseURL}/api/admin/players/steve/status`, { data: { status: 'confirmed' } });
+  });
+
   await t.test("desktop pages fit the viewport", async () => {
     for (const { width, height, routes } of [
       {

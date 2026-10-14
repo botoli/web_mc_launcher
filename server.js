@@ -73,7 +73,11 @@ function getModsHash() {
     return hash.digest('hex');
 }
 
-function saveUsers() { fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2)); }
+function saveUsers() {
+    const temp = `${USERS_FILE}.tmp`;
+    fs.writeFileSync(temp, JSON.stringify(users, null, 2), { mode: 0o600 });
+    fs.renameSync(temp, USERS_FILE);
+}
 
 // ======================== Crypto helpers ========================
 function hashPassword(password) {
@@ -83,6 +87,7 @@ function hashPassword(password) {
 }
 
 function verifyPassword(password, stored) {
+    if (typeof password !== 'string' || typeof stored !== 'string') return false;
     // Old format: SHA256 with static salt
     if (!stored.startsWith('pbkdf2:') && !stored.startsWith('$2')) {
         const oldHash = crypto.createHash('sha256').update(password + 'mc_salt_2026').digest('hex');
@@ -152,6 +157,7 @@ function migrateUser(login, user) {
     if (!user.password || !user.password.startsWith) return user;
     if (user.password.startsWith('pbkdf2:')) return user; // already migrated
     const migrated = {
+        ...user,
         password: user.password,
         email: user.email || '',
         nickname: user.nickname || login,
@@ -269,6 +275,10 @@ app.get('/api/dashboard', adminRequired, (req, res) => {
 });
 
 // ======================== API: Auth ========================
+require('./telegram-auth').installTelegramAuth(app, {
+    users, saveUsers, dataDir: DATA_DIR, secret: process.env.TELEGRAM_BOT_SECRET || ''
+});
+
 app.post('/api/register', (req, res) => {
     const { login, password, email, nickname } = req.body;
     if (!login || !password) return res.json({ error: 'Логин и пароль обязательны' });
@@ -325,6 +335,7 @@ app.post('/api/verify', (req, res) => {
     const decoded = verifyToken(token);
     if (!decoded) return res.json({ valid: false });
     const user = users[decoded.login];
+    if (!user || user.registrationStatus === 'banned') return res.json({ valid: false });
     res.json({ valid: true, username: decoded.login, nickname: user?.nickname || decoded.login });
 });
 
@@ -374,6 +385,7 @@ app.post('/api/launcher-auth', (req, res) => {
     if (token) {
         const decoded = verifyToken(token);
         if (decoded && users[decoded.login]) {
+            if (users[decoded.login].registrationStatus === 'banned') return res.status(403).json({ error: 'Аккаунт заблокирован' });
             users[decoded.login].lastLogin = Date.now();
             saveUsers();
             return res.json({ success: true, username: decoded.login, nickname: users[decoded.login].nickname });
@@ -384,6 +396,7 @@ app.post('/api/launcher-auth', (req, res) => {
     if (login && password) {
         const user = users[login];
         if (!user) return res.json({ error: 'Пользователь не найден' });
+        if (user.registrationStatus === 'banned') return res.status(403).json({ error: 'Аккаунт заблокирован' });
 
         if (!verifyPassword(password, user.password)) {
             return res.json({ error: 'Неверный пароль' });
@@ -596,7 +609,6 @@ function startServer() {
     console.log(`[MCL] Public URL: ${publicURL}`);
     console.log(`[MCL] Web panel: ${publicURL}`);
     console.log(`[MCL] Player portal: ${publicURL}/login`);
-    console.log(`[MCL] JWT Secret: ${JWT_SECRET.substring(0, 8)}...`);
 }
 
 startServer();
