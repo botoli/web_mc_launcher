@@ -1,0 +1,112 @@
+<% title = 'Регистрация'; currentPath = '/register'; %>
+<%- include('partials/header', { title, currentPath }) %>
+
+<div class="container">
+    <div class="card">
+        <h1>📝 Регистрация</h1>
+        <h2>Создайте аккаунт для игры на сервере</h2>
+
+        <% if (typeof error === 'string' && error) { %>
+            <div class="alert alert-error"><%= error %></div>
+        <% } %>
+
+        <form id="registerForm" onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label for="login">Логин *</label>
+                <input type="text" id="login" name="login" placeholder="Придумайте логин" minlength="3" maxlength="32" required autocomplete="username">
+                <div class="form-note">От 3 до 32 символов</div>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="Ваш email (необязательно)" autocomplete="email">
+                <div class="form-note">Для восстановления доступа</div>
+            </div>
+            <div class="form-group">
+                <label for="nickname">Игровой никнейм</label>
+                <input type="text" id="nickname" name="nickname" placeholder="Ваш ник в игре" maxlength="16">
+                <div class="form-note">До 16 символов (можно изменить позже)</div>
+            </div>
+            <div class="form-group">
+                <label for="password">Пароль *</label>
+                <input type="password" id="password" name="password" placeholder="Придумайте пароль" minlength="4" required autocomplete="new-password">
+                <div class="form-note">Минимум 4 символа</div>
+            </div>
+            <button type="submit" class="btn-primary" id="submitBtn">Зарегистрироваться</button>
+        </form>
+        <div class="footer-text" style="margin-top: 20px;">
+            Уже есть аккаунт? <a href="/login">Войти</a>
+        </div>
+    </div>
+    <div class="footer-text">
+        Minecraft Launcher © 2026 | <a href="/">Панель управления</a>
+    </div>
+</div>
+
+<script>
+async function handleRegister(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const login = document.getElementById('login').value.trim();
+    const password = document.getElementById('password').value;
+    const email = document.getElementById('email').value.trim();
+    const nickname = document.getElementById('nickname').value.trim();
+
+    // Remove old errors
+    const oldAlert = document.querySelector('.alert-error');
+    if (oldAlert) oldAlert.remove();
+
+    if (login.length < 3) {
+        showError('Логин должен быть не менее 3 символов');
+        return;
+    }
+    if (password.length < 4) {
+        showError('Пароль должен быть не менее 4 символов');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Регистрация...';
+
+    try {
+        const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login, password, email, nickname })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            // Show success and redirect to login
+            showSuccess(data.message);
+            setTimeout(() => { window.location.href = '/login'; }, 1500);
+        } else {
+            showError(data.error || 'Ошибка регистрации');
+            btn.disabled = false;
+            btn.textContent = 'Зарегистрироваться';
+        }
+    } catch (err) {
+        showError('Ошибка соединения с сервером');
+        btn.disabled = false;
+        btn.textContent = 'Зарегистрироваться';
+    }
+}
+
+function showError(msg) {
+    const alertEl = document.createElement('div');
+    alertEl.className = 'alert alert-error';
+    alertEl.textContent = msg;
+    const form = document.getElementById('registerForm');
+    form.parentNode.insertBefore(alertEl, form);
+}
+
+function showSuccess(msg) {
+    const alertEl = document.createElement('div');
+    alertEl.className = 'alert alert-success';
+    alertEl.textContent = msg;
+    const form = document.getElementById('registerForm');
+    form.parentNode.insertBefore(alertEl, form);
+    document.getElementById('submitBtn').disabled = true;
+}
+</script>
+</body>
+</html>

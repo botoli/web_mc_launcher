@@ -1,0 +1,96 @@
+<% title = 'Профиль'; currentPath = '/profile'; %>
+<%- include('partials/header', { title, currentPath, user: { login } }) %>
+
+<div class="container">
+    <div class="card">
+        <h1>👤 Профиль игрока</h1>
+        <h2>Ваши данные в лаунчере</h2>
+
+        <% if (typeof error === 'string' && error) { %>
+            <div class="alert alert-error"><%= error %></div>
+        <% } %>
+        <% if (typeof success === 'string' && success) { %>
+            <div class="alert alert-success"><%= success %></div>
+        <% } %>
+
+        <div id="playerInfo">
+            <div class="form-group">
+                <label>Логин</label>
+                <p style="padding: 10px 14px; background: #0d1117; border-radius: 8px; font-family: monospace; font-size: 16px; color: #58a6ff;"><%= login %></p>
+            </div>
+            <div class="form-group">
+                <label for="nickname">Игровой никнейм</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="nickname" value="<%= nickname %>" maxlength="16" style="flex: 1;">
+                    <button class="btn-primary" onclick="saveNickname()" style="width: auto; padding: 10px 20px;">💾 Сохранить</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <p style="padding: 10px 14px; background: #0d1117; border-radius: 8px; font-size: 15px;"><%= email || '—' %></p>
+            </div>
+            <div class="form-group">
+                <label>Статус регистрации</label>
+                <p>
+                    <% if (registrationStatus === 'confirmed') { %>
+                        <span style="color: #3fb950;">✅ Подтверждён</span>
+                    <% } else if (registrationStatus === 'pending') { %>
+                        <span style="color: #d2991d;">⏳ Ожидает подтверждения</span>
+                    <% } else if (registrationStatus === 'banned') { %>
+                        <span style="color: #f85149;">🚫 Заблокирован</span>
+                    <% } else { %>
+                        <span style="color: #8b949e;"><%= registrationStatus %></span>
+                    <% } %>
+                </p>
+            </div>
+            <div class="form-group">
+                <label>Дата регистрации</label>
+                <p style="padding: 10px 14px; background: #0d1117; border-radius: 8px; font-size: 15px;"><%= new Date(registeredAt).toLocaleString('ru-RU') %></p>
+            </div>
+            <div class="form-group">
+                <label>Последний вход в лаунчер</label>
+                <p style="padding: 10px 14px; background: #0d1117; border-radius: 8px; font-size: 15px;"><%= lastLogin ? new Date(lastLogin).toLocaleString('ru-RU') : 'Ещё не заходил' %></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-text">
+        <a href="/">Вернуться на главную</a> | Minecraft Launcher © 2026
+    </div>
+</div>
+
+<script>
+async function saveNickname() {
+    const nickname = document.getElementById('nickname').value.trim();
+    if (!nickname) return alert('Никнейм не может быть пустым');
+
+    try {
+        const res = await fetch('/api/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nickname })
+        });
+        const data = await res.json();
+
+        // Show result
+        const old = document.querySelector('.alert-success, .alert-error');
+        if (old) old.remove();
+
+        if (data.success) {
+            const alertEl = document.createElement('div');
+            alertEl.className = 'alert alert-success';
+            alertEl.textContent = data.message || 'Никнейм обновлён';
+            document.getElementById('playerInfo').insertBefore(alertEl, document.getElementById('playerInfo').firstChild);
+        } else {
+            const alertEl = document.createElement('div');
+            alertEl.className = 'alert alert-error';
+            alertEl.textContent = data.error || 'Ошибка';
+            document.getElementById('playerInfo').insertBefore(alertEl, document.getElementById('playerInfo').firstChild);
+        }
+    } catch (err) {
+        alert('Ошибка соединения с сервером');
+    }
+}
+</script>
+</body>
+</html>
