@@ -110,6 +110,11 @@ test('standalone worker connects, forwards updates, delivers replies and stops o
         let polls = 0, forwarded = false, delivered = false;
         global.fetch = async (url, options) => {
             const target = String(url), body = JSON.parse(options.body);
+            if (process.env.TEST_FAILURE === 'network') throw new TypeError('fetch failed: ' + process.env.telegrambotapi);
+            if (target.endsWith('/getMe') && process.env.TEST_FAILURE === 'token') return new Response(JSON.stringify({ ok: false, description: process.env.telegrambotapi }), { status: 401 });
+            if (target.endsWith('/connect') && process.env.TEST_FAILURE === 'secret') return new Response(JSON.stringify({ error: process.env.TELEGRAM_BOT_SECRET }), { status: 401 });
+            if (target.endsWith('/connect') && process.env.TEST_FAILURE === 'route') return new Response('<html>Not found</html>', { status: 404 });
+            if (target.endsWith('/getWebhookInfo') && process.env.TEST_FAILURE === 'webhook') return new Response(JSON.stringify({ ok: true, result: { url: 'https://example.test/private-hook' } }), { status: 200 });
             let result;
             if (target.endsWith('/getMe')) result = { ok: true, result: { username: 'TestWorkerBot' } };
             else if (target.endsWith('/getWebhookInfo')) result = { ok: true, result: { url: '' } };
@@ -143,5 +148,19 @@ test('standalone worker connects, forwards updates, delivers replies and stops o
     const conflict = spawnSync(process.execPath, args, { env: { ...env, TEST_CONFLICT: '1' }, encoding: 'utf8', windowsHide: true, timeout: 5000 });
     assert.equal(conflict.status, 1);
     assert.ok(conflict.stderr.includes('Bot stopped'));
+    assert.ok(conflict.stderr.includes('Telegram getUpdates: HTTP 409'), conflict.stderr);
     assert.ok(!(normal.stdout + normal.stderr + conflict.stdout + conflict.stderr).includes(env.telegrambotapi));
+    for (const [failure, expected] of [
+        ['network', 'Telegram getMe: connection failed or timed out'],
+        ['token', 'Telegram getMe: HTTP 401'],
+        ['secret', 'Backend connect: HTTP 401'],
+        ['route', 'Backend connect: HTTP 404'],
+        ['webhook', 'active webhook'],
+    ]) {
+        const result = spawnSync(process.execPath, args, { env: { ...env, TEST_CONFLICT: '', TEST_FAILURE: failure }, encoding: 'utf8', windowsHide: true, timeout: 5000 });
+        assert.equal(result.status, 1);
+        assert.ok(result.stderr.includes(expected), result.stderr);
+        assert.ok(!(result.stdout + result.stderr).includes(env.telegrambotapi));
+        assert.ok(!(result.stdout + result.stderr).includes(env.TELEGRAM_BOT_SECRET));
+    }
 });
