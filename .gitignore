@@ -1,7 +1,6 @@
 node_modules/
 
 data/clients/
-data/mods/
 
 .env*
 frontend/.next/

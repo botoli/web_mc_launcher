@@ -14,8 +14,8 @@
     "nickname": "Mambokills",
     "registrationStatus": "confirmed",
     "registeredAt": 1786345534545,
-    "lastLogin": 1791972780360,
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6Ik1hbWJva2lsbHMiLCJpYXQiOjE3OTE5NzI3ODAsImV4cCI6MTc5MjU3NzU4MH0.wGI7fSJGvKQY4ettRO-_4tMBqc_b7h1IVRn218L13Zo"
+    "lastLogin": 1792052032099,
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6Ik1hbWJva2lsbHMiLCJpYXQiOjE3OTIwNTIwMzIsImV4cCI6MTc5MjY1NjgzMn0.ImoDWhfYWMhM0cTCU5yYevTUjmG4SCuXR1RfAH0VzCA"
   },
   "WhiteFox30": {
     "password": "pbkdf2:8e6f49c3c8fb6752c3e9a1a0d468323b:d4253c654b6f5e5c426ef94cf86500fc6e8fc20ea47f0224fb43338bdaadc9f68b43bf8c812332b1abc6d233349b7de725210f66f6700405532a841210e1a78b",
@@ -52,5 +52,6 @@
     "registeredAt": 1791993320771,
     "lastLogin": 1792011227363,
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6ImJvdG9saTEiLCJpYXQiOjE3OTIwMTEyMjcsImV4cCI6MTc5MjYxNjAyN30.ov-M1suCDbVLrFcbPF8jqPUY11y_Ye8krecmETGQ-KA"
+
   }
 }
