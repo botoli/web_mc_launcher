@@ -10,7 +10,7 @@ const journalActions = {
     connections: new Set(['connect', 'disconnect', 'connection_denied']),
     account: new Set(['registered', 'nickname_changed', 'email_changed', 'password_changed', 'telegram_linked', 'telegram_unlinked', 'telegram_username_changed', 'discord_linked', 'discord_unlinked']),
     moderation: new Set(['ban', 'unban', 'freeze', 'unfreeze', 'status_changed', 'role_changed']),
-    administration: new Set(['mod_added', 'mod_replaced', 'mod_deleted', 'build_config_changed']),
+    administration: new Set(['mod_added', 'mod_replaced', 'mod_deleted', 'configs_added', 'configs_replaced', 'build_config_changed']),
 };
 const journalEvent = event => journalActions[event.category]?.has(event.action) === true;
 

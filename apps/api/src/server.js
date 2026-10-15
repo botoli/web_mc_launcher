@@ -34,6 +34,7 @@ if (fs.existsSync(path.join(DATA_DIR, 'users.json')) && !(await database.pool.qu
 
 
 [DATA_DIR, MODS_DIR, CLIENTS_DIR].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
+const configStore = require('./configs/archive').createConfigStore(DATA_DIR);
 
 // ======================== JWT Secret ========================
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
@@ -63,11 +64,12 @@ await database.transaction(state => {
 const getBuildConfig = () => structuredClone(database.settings().build || DEFAULT_BUILD_CONFIG);
 
 function getModsHash() {
-    if (!fs.existsSync(MODS_DIR)) return 'empty';
-    const files = fs.readdirSync(MODS_DIR).filter(f => f.endsWith('.jar')).sort();
-    if (files.length === 0) return 'empty';
+    const files = fs.existsSync(MODS_DIR) ? fs.readdirSync(MODS_DIR).filter(f => f.endsWith('.jar')).sort() : [];
+    const configs = configStore.info();
+    if (files.length === 0 && !configs) return 'empty';
     const hash = crypto.createHash('md5');
     files.forEach(f => hash.update(f + fs.statSync(path.join(MODS_DIR, f)).size.toString()));
+    if (configs) hash.update(`configs:${configs.hash}`);
     return hash.digest('hex');
 }
 
@@ -232,6 +234,7 @@ app.get('/api/dashboard', adminRequired, (req, res) => {
     const buildConfig = getBuildConfig();
     res.json({
         mods: modsList.map(name => ({ name, size: fs.statSync(path.join(MODS_DIR, name)).size })),
+        configs: configStore.info(),
         versions: ['1.21.1', '1.20.1', '1.19.2', '1.18.2'],
         loaders: ['neoforge', 'forge', 'fabric', 'vanilla'],
         userCount: Object.keys(users).length,
@@ -441,16 +444,42 @@ app.post('/api/delete-mod', adminRequired, (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/api/download-mods', (req, res) => {
+function downloadBuildArchive(req, res, configsOnly = false) {
+    const configs = configStore.info();
+    if (configsOnly && !configs) return res.status(404).json({ error: 'Архив конфигов ещё не загружен.' });
+    const configSnapshot = configStore.acquire();
     const archive = archiver('zip');
-    res.attachment('mods.zip');
+    archive.on('error', error => { console.error('[MCL] Archive:', error.message); res.destroy(error); });
+    archive.on('warning', error => { console.error('[MCL] Archive:', error.message); res.destroy(error); });
+    res.on('close', () => { archive.abort(); configSnapshot?.release(); });
+    res.attachment(configsOnly ? 'configs.zip' : 'mods.zip');
+    res.set('Cache-Control', 'no-store');
     archive.pipe(res);
-    if (fs.existsSync(MODS_DIR) && fs.readdirSync(MODS_DIR).filter(f => f.endsWith('.jar')).length > 0) {
+    const hasMods = !configsOnly && fs.existsSync(MODS_DIR) && fs.readdirSync(MODS_DIR).some(f => f.endsWith('.jar'));
+    if (hasMods) {
         archive.directory(MODS_DIR, 'mods');
-    } else {
+    }
+    if (configSnapshot) archive.directory(configSnapshot.directory, 'configs');
+    if (!hasMods && !configs) {
         archive.append('no mods', { name: 'empty.txt' });
     }
-    archive.finalize();
+    archive.finalize().catch(error => res.destroy(error));
+}
+
+app.get('/api/download-mods', (req, res) => downloadBuildArchive(req, res));
+app.get('/api/download-configs', (req, res) => downloadBuildArchive(req, res, true));
+
+app.get('/api/configs-info', adminRequired, (req, res) => res.json({ configs: configStore.info() }));
+app.post('/api/upload-configs', adminRequired, async (req, res) => {
+    try {
+        const replacing = Boolean(configStore.info());
+        const configs = await configStore.replace(req.files?.configs);
+        playerServices.audit(req, req.user.login, 'administration', replacing ? 'configs_replaced' : 'configs_added', { target: configs.name });
+        res.json({ success: true, configs });
+    } catch (error) {
+        if (!error.status) console.error('[MCL] Config upload:', error.message);
+        res.status(error.status || 500).json({ error: error.status ? error.message : 'Не удалось сохранить конфиги. Попробуйте ещё раз.' });
+    }
 });
 
 app.get('/api/mods-list', (req, res) => {
@@ -477,6 +506,9 @@ app.get('/api/client-config', (req, res) => {
         servers: config.servers || [{ name: 'MinecraftServer', address: '45.157.232.7:32761' }],
         modsHash: getModsHash(),
         modsURL: `${publicURL}/api/download-mods`,
+        configsHash: configStore.info()?.hash || 'empty',
+        configsURL: configStore.info() ? `${publicURL}/api/download-configs` : null,
+        configsDirectory: 'configs',
         launcherServer: config.launcherServer || publicURL,
         serverIP: config.servers?.[0]?.address || '45.157.232.7:32761'
     });

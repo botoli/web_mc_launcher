@@ -17,6 +17,7 @@ const actions: Record<string, string> = {
   email_changed: 'Смена email', password_changed: 'Смена пароля', password_check: 'Проверка пароля',
   telegram_username_changed: 'Смена Telegram-юзернейма', sessions_revoked: 'Завершение сессий',
   mod_added: 'Добавление мода', mod_replaced: 'Замена мода', mod_deleted: 'Удаление мода',
+  configs_added: 'Добавление конфигов', configs_replaced: 'Замена конфигов',
   build_config_changed: 'Изменение конфигурации сборки',
 };
 const sources: Record<string, string> = { website: 'Сайт', launcher: 'Лаунчер', telegram: 'Telegram', discord: 'Discord', minecraft: 'Minecraft' };

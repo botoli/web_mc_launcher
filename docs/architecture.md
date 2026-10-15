@@ -11,6 +11,7 @@
 | Типы, браузерные и серверные запросы к API | `apps/web/lib/` |
 | Конфигурация Next.js и TypeScript | `apps/web/next.config.ts`, `apps/web/tsconfig.json` |
 | HTTP API, cookie/JWT, файлы модов, proxy к Next.js | `apps/api/src/server.js` |
+| Проверка ZIP и публикация конфигов сборки | `apps/api/src/configs/archive.js` |
 | Пароли и совместимость старых хешей | `apps/api/src/auth/passwords.js` |
 | Профили, роли, модерация и журнал | `apps/api/src/players/services.js` |
 | Telegram-коды входа, сессии и внутренние API worker | `apps/api/src/telegram/auth.js` |

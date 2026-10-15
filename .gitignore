@@ -1,6 +1,7 @@
 node_modules/
 
 data/clients/
+data/configs/
 
 .env*
 apps/web/.next/

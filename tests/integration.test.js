@@ -4,6 +4,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { chromium, expect } = require("@playwright/test");
 const { startTestApp } = require("./test-app");
+const { makeZip, readZip } = require('./zip-fixture');
 
 test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
   const app = await startTestApp();
@@ -26,6 +27,10 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     assert.equal(config.launcherServer, `http://localhost:${app.backendPort}`);
     assert.equal(config.version, "1.21.1");
     assert.equal(config.javaVersion, 21);
+    assert.equal(config.configsHash, 'empty');
+    assert.equal(config.configsURL, null);
+    assert.equal(config.configsDirectory, 'configs');
+    assert.equal((await fetch(`${app.baseURL}/api/download-configs`)).status, 404);
     assert.equal((await fetch(`${app.baseURL}/api/dashboard`)).status, 401);
     const profile = await fetch(`${app.baseURL}/profile`, {
       redirect: "manual",
@@ -171,9 +176,9 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
   await t.test(
     "mod upload, search, download and confirmed deletion",
     async () => {
-      await page.getByRole("link", { name: "Моды", exact: true }).click();
+      await page.getByRole("link", { name: "Моди и конфиги", exact: true }).click();
       await expect(
-        page.getByRole("heading", { name: "Моды твоего мира" }),
+        page.getByRole("heading", { name: "Моди и конфиги" }),
       ).toBeVisible();
       await page
         .locator("#mod-file")
@@ -220,6 +225,53 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
       await screenshot("mods-desktop.png");
     },
   );
+
+  await t.test('config ZIP upload, launcher archive layout, replacement and access control', async () => {
+    const before = await (await fetch(`${app.baseURL}/api/client-config`)).json();
+    const zip = await makeZip([['configs/example.toml', 'value=1'], ['configs/nested/options.json', '{}']]);
+    const form = () => { const body = new FormData(); body.append('configs', new Blob([zip]), 'settings.zip'); return body; };
+    assert.equal((await fetch(`${app.baseURL}/api/upload-configs`, { method: 'POST', body: form() })).status, 401);
+    const player = await (await post('/api/auth', { login: 'steve', password: 'test-password' })).json();
+    assert.equal((await fetch(`${app.baseURL}/api/upload-configs`, { method: 'POST', headers: { Authorization: `Bearer ${player.token}` }, body: form() })).status, 403);
+    await page.locator('#configs-file').setInputFiles({ name: 'settings.zip', mimeType: 'application/zip', buffer: zip });
+    await page.getByRole('button', { name: 'Загрузить конфиги', exact: true }).click();
+    await expect(page.locator('.configs-section .notice.success')).toContainText('Конфиги загружены');
+    await expect(page.locator('.configs-section')).toContainText('settings.zip');
+    await expect(page.locator('.configs-section')).toContainText('Файлов: 2');
+    const config = await (await fetch(`${app.baseURL}/api/client-config`)).json();
+    assert.notEqual(config.modsHash, before.modsHash);
+    assert.match(config.configsHash, /^[a-f0-9]{64}$/);
+    assert.equal(config.configsURL, `http://localhost:${app.backendPort}/api/download-configs`);
+    const download = async route => readZip(Buffer.from(await (await fetch(`${app.baseURL}${route}`)).arrayBuffer()));
+    const configs = await download('/api/download-configs');
+    assert.deepEqual(configs, { 'configs/example.toml': 'value=1', 'configs/nested/options.json': '{}' });
+    const bundle = await download('/api/download-mods');
+    assert.equal(bundle['configs/example.toml'], 'value=1');
+    assert.equal(bundle['configs/nested/options.json'], '{}');
+    assert.equal(Object.keys(bundle).filter(name => name.startsWith('mods/')).length, 3);
+    assert.ok(Object.keys(bundle).every(name => name.startsWith('mods/') || name.startsWith('configs/')));
+    await page.reload();
+    await expect(page.locator('.configs-section')).toContainText('settings.zip');
+    const replacement = await makeZip([['example.toml', 'value=2']]);
+    await page.locator('#configs-file').setInputFiles({ name: 'replacement.zip', mimeType: 'application/zip', buffer: replacement });
+    await expect(page.locator('.configs-section .selected-file')).toContainText('Заменит текущий набор');
+    await page.getByRole('button', { name: 'Загрузить конфиги', exact: true }).click();
+    await expect(page.locator('.configs-section .notice.success')).toContainText('Конфиги загружены');
+    const changed = await (await fetch(`${app.baseURL}/api/client-config`)).json();
+    assert.notEqual(changed.configsHash, config.configsHash);
+    assert.notEqual(changed.modsHash, config.modsHash);
+    assert.deepEqual(await download('/api/download-configs'), { 'configs/example.toml': 'value=2' });
+    await page.locator('#configs-file').setInputFiles({ name: 'broken.zip', mimeType: 'application/zip', buffer: Buffer.from('broken') });
+    await page.getByRole('button', { name: 'Загрузить конфиги', exact: true }).click();
+    await expect(page.locator('.configs-section .notice.error')).toContainText('ZIP');
+    assert.equal((await (await fetch(`${app.baseURL}/api/client-config`)).json()).configsHash, changed.configsHash);
+    await page.getByRole('button', { name: 'Отменить выбор архива' }).click();
+    const journal = await app.snapshot();
+    assert.deepEqual(journal.events.filter(event => event.action.startsWith('configs_')).map(event => event.action), ['configs_added', 'configs_replaced']);
+    await page.reload();
+    await expect(page.locator('.configs-section')).toContainText('replacement.zip');
+    await screenshot('mods-configs-desktop.png');
+  });
 
   await t.test("player search, filtering and status persistence", async () => {
     await page.getByRole("link", { name: "Игроки", exact: true }).click();
@@ -369,7 +421,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
       await page.setViewportSize({ width: 390, height: 844 });
       for (const [route, title, screenshotName] of [
         ["/", "Твоя следующая сборка", "dashboard-mobile.png"],
-        ["/mods", "Моды твоего мира", "mods-mobile.png"],
+        ["/mods", "Моди и конфиги", "mods-mobile.png"],
         ["/players", "Люди, которые создают мир", "players-mobile.png"],
         ["/profile", "Твой профиль", "profile-mobile.png"],
         ["/logs", "Логи игроков", "logs-mobile.png"],
@@ -397,9 +449,9 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
         await screenshot(screenshotName);
       }
       await page.getByRole("button", { name: "Открыть меню" }).click();
-      await page.getByRole("link", { name: "Моды", exact: true }).click();
+      await page.getByRole("link", { name: "Моди и конфиги", exact: true }).click();
       await expect(
-        page.getByRole("heading", { name: "Моды твоего мира" }),
+        page.getByRole("heading", { name: "Моди и конфиги" }),
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Открыть меню" }),

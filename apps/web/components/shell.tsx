@@ -20,7 +20,7 @@ import { Notice } from "./ui";
 
 const links = [
   { href: "/", label: "Сборка", icon: Box },
-  { href: "/mods", label: "Моды", icon: Blocks },
+  { href: "/mods", label: "Моди и конфиги", icon: Blocks },
   { href: "/players", label: "Игроки", icon: Users },
   { href: "/logs", label: "Логи", icon: ScrollText },
   { href: "/profile", label: "Мой профиль", icon: UserRound },

@@ -35,8 +35,17 @@ export type BuildConfig = {
   launcherServer: string;
 };
 export type Mod = { name: string; size: number };
+export type ConfigArchive = {
+  name: string;
+  size: number;
+  unpackedSize: number;
+  fileCount: number;
+  hash: string;
+  updatedAt: number;
+};
 export type DashboardData = {
   mods: Mod[];
+  configs: ConfigArchive | null;
   versions: string[];
   loaders: string[];
   userCount: number;
