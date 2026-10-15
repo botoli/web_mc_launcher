@@ -11,6 +11,7 @@ import {
   ArrowUpRight,
   Menu,
   X,
+  ScrollText,
 } from "lucide-react";
 import { useState } from "react";
 import { api, errorMessage } from "@/lib/api";
@@ -21,6 +22,7 @@ const links = [
   { href: "/", label: "Сборка", icon: Box },
   { href: "/mods", label: "Моды", icon: Blocks },
   { href: "/players", label: "Игроки", icon: Users },
+  { href: "/logs", label: "Логи", icon: ScrollText },
   { href: "/profile", label: "Мой профиль", icon: UserRound },
 ];
 export function Brand() {
@@ -82,13 +84,13 @@ export function Shell({
         <Brand />
         <span className="nav-caption">Управление сервером</span>
         <nav aria-label="Основная навигация">
-          {links.map(({ href, label, icon: Icon }) => (
+          {links.filter(({ href }) => user.role === 'admin' || href === '/profile').map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
               onClick={() => setOpen(false)}
-              className={`nav-link ${pathname === href ? "active" : ""}`}
-              aria-current={pathname === href ? "page" : undefined}
+              className={`nav-link ${pathname === href || (href !== '/' && pathname.startsWith(href + '/')) ? "active" : ""}`}
+              aria-current={pathname === href || (href !== '/' && pathname.startsWith(href + '/')) ? "page" : undefined}
             >
               <Icon size={19} />
               {label}
@@ -114,7 +116,7 @@ export function Shell({
             </span>
             <div>
               <strong>{user.login}</strong>
-              <small>Аккаунт лаунчера</small>
+              <small>{user.role === 'admin' ? 'Админ' : 'Игрок'}</small>
             </div>
             <button
               className="icon-button"

@@ -15,7 +15,8 @@
     "registrationStatus": "confirmed",
     "registeredAt": 1786345534545,
     "lastLogin": 1792052032099,
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6Ik1hbWJva2lsbHMiLCJpYXQiOjE3OTIwNTIwMzIsImV4cCI6MTc5MjY1NjgzMn0.ImoDWhfYWMhM0cTCU5yYevTUjmG4SCuXR1RfAH0VzCA"
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6Ik1hbWJva2lsbHMiLCJpYXQiOjE3OTIwNTIwMzIsImV4cCI6MTc5MjY1NjgzMn0.ImoDWhfYWMhM0cTCU5yYevTUjmG4SCuXR1RfAH0VzCA",
+    "role": "admin"
   },
   "WhiteFox30": {
     "password": "pbkdf2:8e6f49c3c8fb6752c3e9a1a0d468323b:d4253c654b6f5e5c426ef94cf86500fc6e8fc20ea47f0224fb43338bdaadc9f68b43bf8c812332b1abc6d233349b7de725210f66f6700405532a841210e1a78b",
@@ -24,7 +25,8 @@
     "registrationStatus": "confirmed",
     "registeredAt": 1786347805186,
     "lastLogin": 1786348088363,
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6IldoaXRlRm94MzAiLCJpYXQiOjE3ODYzNDc4MzIsImV4cCI6MTc4Njk1MjYzMn0.NYKgTNUWg0UhOZTi4v7ndDQEOE8J0k9MbYLXOTBG2ZA"
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6IldoaXRlRm94MzAiLCJpYXQiOjE3ODYzNDc4MzIsImV4cCI6MTc4Njk1MjYzMn0.NYKgTNUWg0UhOZTi4v7ndDQEOE8J0k9MbYLXOTBG2ZA",
+    "role": "admin"
   },
   "Andrey": {
     "password": "pbkdf2:42a885eef51a331bc644982a0c6f0a90:9dbea35f7855851f041c0df7a5d370ba6f2ff871ac35219ba7dbca536d3c7fcab8e71e91df97c0bb70a0dcce490a898f928e5635516137a3b253f5cdb3b40402",
@@ -41,18 +43,61 @@
     "nickname": "botoli",
     "registrationStatus": "confirmed",
     "registeredAt": 1786376723761,
-    "lastLogin": 1786376728466,
+    "lastLogin": 1792086346398,
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6ImJvdG9saSIsImlhdCI6MTc4NjM3NjcyOCwiZXhwIjoxNzg2OTgxNTI4fQ.PwB6rqTYWbv2EpmyElxfAVBi55tGwuqF4Iz1eva_Hx8"
   },
   "botoli1": {
-    "password": "pbkdf2:edce8892add4fc8b8c47067c7f358f81:dea7b1bf67dce0517bb538a4abbe8b9973e3099da09a1fa369bd13f8bb5c70d44b5f602b8a35d874ad2a368dc4df87a2fbec5b5381881587cc308bd5621eac2b",
+    "password": "scrypt:7f8a7df342064aad7a7d9b88f4fdf0c0:23a483ddf3a9fdee29747197f9abde0d8b2b18af161c83a094e04bd2fbc65d43f2fabbb336904db085df5db654ad2d5d8ad4bb2f6f0bc975388646b85d3e3b8e",
     "email": "",
     "nickname": "botoli1",
     "registrationStatus": "confirmed",
     "registeredAt": 1791993320771,
-
-    "lastLogin": 1792011227363,
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6ImJvdG9saTEiLCJpYXQiOjE3OTIwMTEyMjcsImV4cCI6MTc5MjYxNjAyN30.ov-M1suCDbVLrFcbPF8jqPUY11y_Ye8krecmETGQ-KA"
-
+    "lastLogin": 1792092143096,
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6ImJvdG9saTEiLCJsYXVuY2hlclZlcnNpb24iOjAsInNlc3Npb25WZXJzaW9uIjowLCJpYXQiOjE3OTIwOTIxNDMsImV4cCI6MTc5MjY5Njk0M30.wGSs5x1kcmpnqu-kazVJagiqT3mqgySdsYXgEd46l6U"
+  },
+  "tg_964264865": {
+    "password": null,
+    "email": "",
+    "nickname": "qwe",
+    "registrationStatus": "pending",
+    "registeredAt": 1792084327208,
+    "lastLogin": 1792084517353,
+    "token": null
+  },
+  "tg_964264865_d4626018": {
+    "password": "scrypt:fe3c6173db2e5187fbd946d612f283ef:68c6360eafd1fbeb0d97d1248410c08f77b20bea5a69bdb44c6d6c2f0382b79149503e62dfd905922d0d1457fc2fc04c7e6a533425601528db573cf60a1dd955",
+    "email": "",
+    "nickname": "ffff",
+    "registrationStatus": "confirmed",
+    "registeredAt": 1792086415535,
+    "lastLogin": 1792088654427,
+    "token": null,
+    "statusBeforeBan": "pending",
+    "frozenUntil": null,
+    "launcherVersion": 5,
+    "moderationReason": "хуисос",
+    "sessionVersion": 2
+  },
+  "botoli2": {
+    "password": "pbkdf2:da584703f6491c01925d077368955bcc:ff3518074d16b996381ca4cb582992d842bb3b1d34820547cf0f1be3be6b29493c808fa98103aef399365183239411b61490b4f2b2d1cbd8c3d2a4a7e73ffa2b",
+    "email": "",
+    "nickname": "botoli2",
+    "registrationStatus": "confirmed",
+    "registeredAt": 1792088348372,
+    "lastLogin": 1792088352288,
+    "token": null
+  },
+  "tg_964264865_a105c802": {
+    "password": "scrypt:14149ff68d17008b9d85940f8d83a722:d70dbe09ede12464fe2b829aa5ddd797b5b0214967157eae06940d6d3c3db84798b0286e5430320e80b2db90e4634b67afd82d974c781f67c64c3e7492b97eee",
+    "email": "",
+    "nickname": "botoli3",
+    "role": "player",
+    "registrationStatus": "pending",
+    "registeredAt": 1792092009898,
+    "lastLogin": 1792092011330,
+    "token": null,
+    "telegramId": "964264865",
+    "telegramUsername": "Grmmy",
+    "launcherVersion": 1
   }
 }

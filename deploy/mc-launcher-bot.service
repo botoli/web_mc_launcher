@@ -6,8 +6,8 @@ After=network-online.target mc-launcher-server.service
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/mc-launcher/web_mc_launcher/bot
-ExecStart=/usr/bin/node /opt/mc-launcher/web_mc_launcher/bot/bot.js
+WorkingDirectory=/opt/mc-launcher/web_mc_launcher/apps/bot
+ExecStart=/usr/bin/node /opt/mc-launcher/web_mc_launcher/apps/bot/bot.js
 Environment=NODE_ENV=production
 Restart=on-failure
 RestartSec=10

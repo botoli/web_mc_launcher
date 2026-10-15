@@ -2,7 +2,7 @@ const { spawn, spawnSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 
-function startLauncher({ mode = 'start', root = path.resolve(__dirname, '..'), frontendDirectory = path.join(root, 'frontend') } = {}) {
+function startLauncher({ mode = 'start', root = path.resolve(__dirname, '..'), frontendDirectory = path.join(root, 'apps/web') } = {}) {
     require('@next/env').loadEnvConfig(root, mode === 'dev');
     const frontendPort = process.env.FRONTEND_PORT || '3001';
     const backendPort = process.env.PORT || '3000';
@@ -19,7 +19,7 @@ function startLauncher({ mode = 'start', root = path.resolve(__dirname, '..'), f
     };
     const children = [
         spawn(process.execPath, [require.resolve('next/dist/bin/next'), mode, '.', '--hostname', '127.0.0.1', '--port', frontendPort], { cwd: frontendDirectory, env, stdio: 'inherit', windowsHide: true }),
-        spawn(process.execPath, [path.join(root, 'server.js')], { cwd: root, env, stdio: 'inherit', windowsHide: true })
+        spawn(process.execPath, [path.join(root, 'apps/api/src/server.js')], { cwd: root, env, stdio: 'inherit', windowsHide: true })
     ];
     let stopping = false;
     function stop(code = 0) {

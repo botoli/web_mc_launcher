@@ -60,6 +60,11 @@ export function formatDate(value: number | null) {
       }).format(new Date(value))
     : "Ещё не заходил";
 }
+export function formatDateTime(value: number | null) {
+  return value ? new Intl.DateTimeFormat('ru-RU', {
+    dateStyle: 'medium', timeStyle: 'medium', timeZone: 'Europe/Moscow',
+  }).format(new Date(value)) : '—';
+}
 export function formatSize(bytes: number) {
   return bytes < 1048576
     ? `${Math.max(1, Math.round(bytes / 1024))} КБ`

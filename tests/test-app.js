@@ -4,6 +4,8 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
+const { createTestDatabase } = require('./test-database');
+const { copyApiFixture } = require('./copy-api-fixture');
 
 const root = path.resolve(__dirname, '..');
 async function freePort() {
@@ -15,12 +17,12 @@ async function freePort() {
     return port;
 }
 async function startTestApp() {
+    const db = await createTestDatabase();
     const fixture = await fs.mkdtemp(path.join(os.tmpdir(), 'mc-launcher-test-'));
     const backendPort = await freePort();
     let frontendPort = await freePort();
     while (frontendPort === backendPort) frontendPort = await freePort();
-    await fs.copyFile(path.join(root, 'server.js'), path.join(fixture, 'server.js'));
-    await fs.copyFile(path.join(root, 'telegram-auth.js'), path.join(fixture, 'telegram-auth.js'));
+    await copyApiFixture(root, fixture);
     await fs.mkdir(path.join(fixture, 'data/mods'), { recursive: true });
     await fs.mkdir(path.join(fixture, 'data/clients'), { recursive: true });
     for (const name of ['jei-1.21.1-neoforge.jar', 'journeymap-1.21.1.jar', 'sodium-neoforge-0.6.13.jar']) {
@@ -28,16 +30,17 @@ async function startTestApp() {
     }
     await fs.writeFile(path.join(fixture, 'data/clients/launcher-portable.zip'), 'Test launcher fixture');
     const env = {
-        ...process.env, PORT: String(backendPort), FRONTEND_PORT: String(frontendPort),
+        ...db.env, PORT: String(backendPort), FRONTEND_PORT: String(frontendPort),
         BACKEND_URL: `http://127.0.0.1:${backendPort}`, DOMAIN: 'localhost',
         USE_HTTPS: 'false', JWT_SECRET: 'integration-test-only-secret',
+        PLAYER_EVENTS_SECRET: 'integration-events-secret-32-characters',
         NODE_ENV: 'production', NODE_PATH: path.join(root, 'node_modules'),
         NEXT_TELEMETRY_DISABLED: '1'
     };
     const bootstrap = path.join(fixture, 'bootstrap.cjs');
     await fs.writeFile(bootstrap, `
         const { startLauncher } = require(${JSON.stringify(path.join(root, 'scripts/run.js'))});
-        const launcher = startLauncher({ root: __dirname, frontendDirectory: ${JSON.stringify(path.join(root, 'frontend'))} });
+        const launcher = startLauncher({ root: __dirname, frontendDirectory: ${JSON.stringify(path.join(root, 'apps/web'))} });
         process.on('message', message => { if (message === 'stop') { launcher.stop(); process.disconnect(); } });
     `);
     const children = [spawn(process.execPath, [bootstrap], { cwd: fixture, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })];
@@ -60,6 +63,7 @@ async function startTestApp() {
             throw new Error(`Refusing to remove unexpected test directory: ${target}`);
         }
         await fs.rm(target, { recursive: true, force: true });
+        await db.close();
     }
     try {
         const deadline = Date.now() + 30000;
@@ -70,6 +74,6 @@ async function startTestApp() {
             await new Promise(resolve => setTimeout(resolve, 200));
         }
     } catch (error) { await stop(); throw error; }
-    return { baseURL, backendPort, frontendPort, fixture, stop, output: () => output };
+    return { baseURL, backendPort, frontendPort, fixture, stop, snapshot: db.snapshot, output: () => output };
 }
 module.exports = { startTestApp };

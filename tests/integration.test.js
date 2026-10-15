@@ -50,6 +50,9 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     });
     assert.equal((await response.json()).success, true);
   }
+  // botoli1 is the sole role manager. Prepare the existing administrator test account through the real API.
+  await post('/api/register', { login: 'botoli1', password: 'test-password', nickname: 'botoli1' });
+  const roleManager = await (await post('/api/auth', { login: 'botoli1', password: 'test-password' })).json();
   const browser = await chromium.launch({ headless: true });
   t.after(() => browser.close());
   const context = await browser.newContext({
@@ -88,6 +91,9 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
       await expect(
         page.getByRole("heading", { name: "Всё готово к игре" }),
       ).toBeVisible();
+      await fetch(`${app.baseURL}/api/admin/players/builder/role`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${roleManager.token}` }, body: JSON.stringify({ role: 'admin' }),
+      });
       await page.getByRole("link", { name: "Перейти ко входу" }).click();
       await page.getByLabel("Логин", { exact: true }).fill("builder");
       await page.getByLabel("Пароль", { exact: true }).fill("wrong-password");
@@ -149,12 +155,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await expect(page.locator(".notice.success")).toContainText(
       "Сборка сохранена",
     );
-    const saved = JSON.parse(
-      await fs.readFile(
-        path.join(app.fixture, "data/build-config.json"),
-        "utf8",
-      ),
-    );
+    const saved = (await app.snapshot()).settings.build;
     assert.equal(saved.maxMemory, 6144);
     assert.equal(saved.launcherServer, `http://localhost:${app.backendPort}`);
     await page
@@ -235,7 +236,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
       page.getByRole("heading", { name: "Игроки не найдены" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Сбросить фильтры" }).click();
-    await expect(page.locator("tbody tr")).toHaveCount(3);
+    await expect(page.locator("tbody tr")).toHaveCount(4);
     await screenshot("players-desktop.png");
   });
 
@@ -249,6 +250,85 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     assert.equal((await post('/api/launcher-auth', { token: login.token })).status, 403);
     assert.equal((await (await post('/api/verify', { token: login.token })).json()).valid, false);
     await context.request.put(`${app.baseURL}/api/admin/players/steve/status`, { data: { status: 'confirmed' } });
+  });
+
+  await t.test("player actions, confirmation, tabbed history and global log filters", async () => {
+    await page.goto(`${app.baseURL}/players`);
+    await page.getByLabel('Поиск игроков', { exact: true }).fill('alex');
+    await page.getByRole('link', { name: 'Действия', exact: true }).click();
+    await expect(page.getByRole('tab', { name: 'Данные об игроке' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('heading', { name: 'Доступ к лаунчеру' })).toBeVisible();
+    await page.getByLabel('Причина ограничения', { exact: true }).fill('Проверка интерфейса');
+    await page.getByLabel('Заморозка на часов', { exact: true }).fill('2');
+    await page.getByRole('button', { name: 'Заморозить', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('button', { name: 'Отмена', exact: true }).click();
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await page.getByRole('button', { name: 'Заморозить', exact: true }).click();
+    await page.getByRole('button', { name: 'Подтвердить', exact: true }).click();
+    await expect(page.locator('.player-flags')).toContainText('Заморожен до');
+    await page.getByRole('button', { name: 'Снять заморозку', exact: true }).click();
+    await page.getByRole('button', { name: 'Подтвердить', exact: true }).click();
+    await expect(page.locator('.player-flags')).not.toContainText('Заморожен до');
+    await page.getByRole('tab', { name: 'Все действия', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Журнал действий' })).toContainText('Заморозка');
+    await page.getByRole('tab', { name: 'Лог авторизаций', exact: true }).click();
+    await expect(page.getByText('События не найдены', { exact: true })).toBeVisible();
+    await page.getByRole('tab', { name: 'Подключения на сервер', exact: true }).click();
+    await expect(page.getByText('События не найдены', { exact: true })).toBeVisible();
+    await screenshot('player-actions-desktop.png');
+    await page.getByRole('link', { name: 'Логи', exact: true }).click();
+    await page.getByLabel('Тип событий', { exact: true }).selectOption('moderation');
+    await page.getByLabel('Поиск в логах', { exact: true }).fill('alex');
+    await expect(page.getByRole('region', { name: 'Журнал действий' })).toContainText('Снятие заморозки');
+    await screenshot('logs-desktop.png');
+    await context.request.post(`${app.baseURL}/api/internal/discord-events`, {
+      headers: { 'X-Events-Secret': 'integration-events-secret-32-characters' },
+      data: { login: 'alex', discordId: '123456789', username: 'alex.discord', bot: 'TestDiscordBot', action: 'discord_linked', ip: '' },
+    });
+    await page.getByLabel('Тип событий', { exact: true }).selectOption('');
+    await page.getByLabel('Поиск в логах', { exact: true }).fill('alex.discord');
+    await expect(page.getByRole('columnheader', { name: 'Telegram / Discord', exact: true })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Откуда', exact: true })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Куда / объект', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Журнал действий' })).toContainText('alex.discord');
+    await page.getByRole('button', { name: /^Подробности события/ }).first().click();
+    await expect(page.locator('.event-details-row')).toContainText('123456789');
+    await screenshot('logs-identity-desktop.png');
+  });
+
+  await t.test("only botoli1 can manage roles in the players table", async () => {
+    await page.goto(`${app.baseURL}/players`);
+    await expect(page.getByLabel('Роль alex', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Поддержка', exact: true })).toHaveCount(0);
+    const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const playerContext = await browser.newContext();
+    try {
+      const ownerPage = await ownerContext.newPage();
+      await ownerPage.goto(`${app.baseURL}/login`);
+      await ownerPage.getByLabel('Логин', { exact: true }).fill('botoli1');
+      await ownerPage.getByLabel('Пароль', { exact: true }).fill('test-password');
+      await ownerPage.getByRole('button', { name: 'Войти', exact: true }).click();
+      await expect(ownerPage).toHaveURL(/\/profile$/);
+      await ownerPage.goto(`${app.baseURL}/players`);
+      await expect(ownerPage.getByLabel('Роль botoli1', { exact: true })).toBeDisabled();
+      await ownerPage.getByLabel('Роль alex', { exact: true }).selectOption('admin');
+      await expect(ownerPage.locator('.notice.success')).toContainText('Роль игрока alex изменена');
+      const playerPage = await playerContext.newPage();
+      await playerPage.goto(`${app.baseURL}/login`);
+      await playerPage.getByLabel('Логин', { exact: true }).fill('alex');
+      await playerPage.getByLabel('Пароль', { exact: true }).fill('test-password');
+      await playerPage.getByRole('button', { name: 'Войти', exact: true }).click();
+      await expect(playerPage).toHaveURL(/\/profile$/);
+      await playerPage.goto(`${app.baseURL}/logs`);
+      await expect(playerPage.getByRole('heading', { name: 'Логи игроков', exact: true })).toBeVisible();
+      await ownerPage.getByLabel('Роль alex', { exact: true }).selectOption('player');
+      await expect(ownerPage.locator('.notice.success')).toContainText('«Игрок»');
+      await playerPage.reload();
+      await expect(playerPage).toHaveURL(/\/profile$/);
+      await expect(playerPage.getByRole('link', { name: 'Логи', exact: true })).toHaveCount(0);
+      await ownerPage.screenshot({ path: path.join(artifacts, 'roles-desktop.png'), fullPage: true });
+    } finally { await ownerContext.close(); await playerContext.close(); }
   });
 
   await t.test("desktop pages fit the viewport", async () => {
@@ -292,6 +372,8 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
         ["/mods", "Моды твоего мира", "mods-mobile.png"],
         ["/players", "Люди, которые создают мир", "players-mobile.png"],
         ["/profile", "Твой профиль", "profile-mobile.png"],
+        ["/logs", "Логи игроков", "logs-mobile.png"],
+        ["/players/alex", "alex", "player-actions-mobile.png"],
       ]) {
         await page.goto(`${app.baseURL}${route}`);
         await expect(

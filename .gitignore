@@ -3,10 +3,22 @@ node_modules/
 data/clients/
 
 .env*
-frontend/.next/
-frontend/tsconfig.tsbuildinfo
+apps/web/.next/
+apps/web/tsconfig.tsbuildinfo
 artifacts/
 bot/.env
+bot/.delivery-receipts.json
+bot/.delivery-receipts.json.tmp
+apps/bot/.env
+apps/bot/.delivery-receipts.json
+apps/bot/.delivery-receipts.json.tmp
 data/telegram-auth-state.json
 data/telegram-auth-state.json.tmp
 data/users.json.tmp
+data/player-events.jsonl
+
+# Private database backups and credentials
+data/backups/
+data/postgres/
+*.dump
+!.env.example

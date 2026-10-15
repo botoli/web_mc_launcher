@@ -5,8 +5,8 @@ const backend =
   process.env.BACKEND_URL || `http://127.0.0.1:${process.env.PORT || 3000}`;
 const config: NextConfig = {
   poweredByHeader: false,
-  outputFileTracingRoot: path.resolve(__dirname, ".."),
-  turbopack: { root: path.resolve(__dirname, "..") },
+  outputFileTracingRoot: path.resolve(__dirname, "../.."),
+  turbopack: { root: path.resolve(__dirname, "../..") },
   allowedDevOrigins: [
     "localhost",
     "127.0.0.1",

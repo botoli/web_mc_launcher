@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Profile } from "./types";
 
 export async function serverApi<T>(path: string, returnTo = "/"): Promise<T> {
@@ -15,6 +15,8 @@ export async function serverApi<T>(path: string, returnTo = "/"): Promise<T> {
   });
   if (response.status === 401)
     redirect(`/login?redirect=${encodeURIComponent(returnTo)}`);
+  if (response.status === 403) redirect('/profile');
+  if (response.status === 404) notFound();
   if (!response.ok) throw new Error("Не удалось загрузить данные сервера.");
   return response.json() as Promise<T>;
 }
