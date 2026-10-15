@@ -1,0 +1,17 @@
+[Unit]
+Description=Minecraft Launcher Telegram Bot
+Wants=network-online.target
+Requires=mc-launcher-server.service
+After=network-online.target mc-launcher-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mc-launcher/web_mc_launcher/bot
+ExecStart=/usr/bin/node /opt/mc-launcher/web_mc_launcher/bot/bot.js
+Environment=NODE_ENV=production
+Restart=on-failure
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target
