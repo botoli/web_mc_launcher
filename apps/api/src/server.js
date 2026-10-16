@@ -18,13 +18,9 @@ const { createPlayerServices } = require('./players/services');
 const app = express();
 // Forwarded IPs are accepted only from explicitly configured proxies.
 if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY.split(',').map(value => value.trim()));
-const PORT = process.env.PORT || 3000;
-const HTTPS_PORT = process.env.HTTPS_PORT || 3443;
-
-// Domain
-const DOMAIN = process.env.DOMAIN || '89.125.214.122';
-const USE_HTTPS = process.env.USE_HTTPS === 'true';
-const publicURL = USE_HTTPS ? `https://${DOMAIN}` : `http://${DOMAIN}:${PORT}`;
+const { networkConfig } = require('./config/network');
+const { host: HOST, port: PORT, httpsPort: HTTPS_PORT, domain: DOMAIN,
+    useHTTPS: USE_HTTPS, httpsEnabled: HTTPS_ENABLED, publicURL } = networkConfig();
 
 const MODS_DIR = path.join(DATA_DIR, 'mods');
 const CLIENTS_DIR = path.join(DATA_DIR, 'clients');
@@ -589,22 +585,22 @@ app.use((req, res) => frontendProxy.web(req, res));
 function startServer() {
     const httpServer = http.createServer(app);
     httpServer.on('upgrade', (req, socket, head) => frontendProxy.ws(req, socket, head));
-    httpServer.listen(PORT, '0.0.0.0', () => {
-        console.log(`[MCL] HTTP server on http://0.0.0.0:${PORT}`);
+    httpServer.listen(PORT, HOST, () => {
+        console.log(`[MCL] HTTP server on http://${HOST}:${PORT}`);
     });
 
     const keyPath = path.join(DATA_DIR, 'certs/privkey.pem');
     const certPath = path.join(DATA_DIR, 'certs/fullchain.pem');
 
-    if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    if (HTTPS_ENABLED && fs.existsSync(keyPath) && fs.existsSync(certPath)) {
         const httpsOptions = {
             key: fs.readFileSync(keyPath),
             cert: fs.readFileSync(certPath)
         };
         const httpsServer = https.createServer(httpsOptions, app);
         httpsServer.on('upgrade', (req, socket, head) => frontendProxy.ws(req, socket, head));
-        httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
-            console.log(`[MCL] HTTPS server on https://0.0.0.0:${HTTPS_PORT}`);
+        httpsServer.listen(HTTPS_PORT, HOST, () => {
+            console.log(`[MCL] HTTPS server on https://${HOST}:${HTTPS_PORT}`);
         });
         console.log(`[MCL] HTTPS active: https://${DOMAIN}`);
     } else {

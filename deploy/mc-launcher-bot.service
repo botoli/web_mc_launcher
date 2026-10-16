@@ -7,11 +7,23 @@ After=network-online.target mc-launcher-server.service
 [Service]
 Type=simple
 WorkingDirectory=/opt/mc-launcher/web_mc_launcher/apps/bot
-ExecStart=/usr/bin/node /opt/mc-launcher/web_mc_launcher/apps/bot/bot.js
+ExecStart=/opt/mc-launcher/runtime/node/bin/node /opt/mc-launcher/web_mc_launcher/apps/bot/bot.js
 Environment=NODE_ENV=production
 Restart=on-failure
 RestartSec=10
-User=root
+User=mc-launcher-bot
+Group=mc-launcher-bot
+Environment=TELEGRAM_DELIVERY_STATE_FILE=/var/lib/mc-launcher-bot/delivery-receipts.json
+StateDirectory=mc-launcher-bot
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+InaccessiblePaths=-/opt/mc-launcher/web_mc_launcher/.env
+InaccessiblePaths=-/opt/mc-launcher/web_mc_launcher/data
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target

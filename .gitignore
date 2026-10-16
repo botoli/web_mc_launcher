@@ -2,7 +2,8 @@ node_modules/
 
 data/clients/
 data/configs/
-
+data/certs/
+data/users.json
 .env*
 apps/web/.next/
 apps/web/tsconfig.tsbuildinfo

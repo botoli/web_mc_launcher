@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew Minecraft Launcher IP certificate
+Wants=network-online.target
+After=network-online.target nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/mc-launcher/runtime/certbot/bin/certbot renew --cert-name mc-launcher-ip --quiet --no-random-sleep-on-renew

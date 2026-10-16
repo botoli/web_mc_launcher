@@ -6,12 +6,28 @@ Requires=postgresql.service
 [Service]
 Type=simple
 WorkingDirectory=/opt/mc-launcher/web_mc_launcher
-ExecStart=/usr/bin/node /opt/mc-launcher/web_mc_launcher/scripts/run.js start
+ExecStart=/opt/mc-launcher/runtime/node/bin/node /opt/mc-launcher/web_mc_launcher/scripts/run.js start
 Environment=NODE_ENV=production
 Environment=NEXT_TELEMETRY_DISABLED=1
 Restart=on-failure
 RestartSec=5
-User=root
+User=mc-launcher-api
+Group=mc-launcher-api
+Environment=HOST=127.0.0.1
+Environment=HTTPS_ENABLED=false
+Environment=TRUST_PROXY=loopback
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/mc-launcher/web_mc_launcher/data
+ReadWritePaths=/opt/mc-launcher/web_mc_launcher/apps/web/.next/cache
+InaccessiblePaths=-/opt/mc-launcher/web_mc_launcher/bot/.env
+InaccessiblePaths=-/opt/mc-launcher/web_mc_launcher/apps/bot/.env
+InaccessiblePaths=-/opt/mc-launcher/web_mc_launcher/data/certs
+InaccessiblePaths=-/opt/mc-launcher/web_mc_launcher/data/backups
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target

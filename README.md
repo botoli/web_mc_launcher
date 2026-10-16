@@ -4,7 +4,9 @@
 
 ## Запуск
 
-Для веб-приложения нужны Node.js 20.9 или новее и PostgreSQL 16+, для отдельного бота — Node.js 22+. Параметры подключения, схема, перенос прежних данных и резервирование описаны в [docs/database.md](docs/database.md). Перед первым запуском перенесите существующие JSON-данные командой `npm run db:migrate`, затем `npm run db:verify`.
+Production-размещение на сервере, Nginx, права служб и IP-сертификат: [docs/deployment.md](docs/deployment.md).
+
+Для веб-приложения и бота используется Node.js 24 LTS; для базы нужен PostgreSQL 16+. Параметры подключения, схема, перенос прежних данных и резервирование описаны в [docs/database.md](docs/database.md). Перед первым запуском перенесите существующие JSON-данные командой `npm run db:migrate`, затем `npm run db:verify`.
 
 ```powershell
 cd E:\mc_launcher\web_mc_launcher
@@ -33,15 +35,11 @@ npm.cmd start
 - Заходить в приложение нужно через **порт Express**, а не через внутренний порт Next.js.
 - Next.js получает данные для серверного рендеринга непосредственно от Express. Cookie авторизации передаётся только в backend; JWT не хранится в localStorage.
 
-Исходные правила формирования адресов сохранены:
+`HOST` задаёт адрес Express (по умолчанию `127.0.0.1`); Next.js также слушает только loopback. При прямом доступе к dev-серверу с другого компьютера задайте `HOST=0.0.0.0` явно.
 
-```js
-const DOMAIN = process.env.DOMAIN || '89.125.214.122';
-const USE_HTTPS = process.env.USE_HTTPS === 'true';
-const publicURL = USE_HTTPS ? `https://${DOMAIN}` : `http://${DOMAIN}:${PORT}`;
-```
+`PUBLIC_URL` задаёт внешний HTTP(S)-адрес без пути. Если он не указан, адрес вычисляется из `DOMAIN`, `PORT` и прежнего `USE_HTTPS`. HTTPS в публичном адресе включает `Secure` для cookie независимо от внутреннего транспорта.
 
-При `USE_HTTPS=true` публичный адрес — `https://DOMAIN`. Как и раньше, сертификаты читаются из `data/certs/privkey.pem` и `data/certs/fullchain.pem`, HTTPS слушает `HTTPS_PORT` (по умолчанию `3443`). Для стандартного публичного порта 443 требуется соответствующая настройка reverse proxy / перенаправления портов. Внешний proxy должен передавать `X-Forwarded-Proto: https`.
+За Nginx задайте `PUBLIC_URL=https://<адрес>`, `HTTPS_ENABLED=false` и `TRUST_PROXY=loopback`. Proxy должен передавать `X-Forwarded-Proto` и заменять клиентский `X-Forwarded-For`. `HTTPS_ENABLED=false` отключает встроенный TLS, даже если в `data/certs` остались файлы. Без явного отключения встроенный TLS запускается при наличии `privkey.pem` и `fullchain.pem`, на `HOST:HTTPS_PORT` (по умолчанию `127.0.0.1:3443`).
 
 Приложения сгруппированы в `apps/`. Зависимости и npm-команды остаются общими в корне репозитория. Пути к `.env` и `data/` вычисляются от корня через `apps/api/src/config/paths.js` и не зависят от текущего каталога терминала:
 
