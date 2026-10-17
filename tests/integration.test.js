@@ -277,19 +277,128 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await page.getByRole("link", { name: "Игроки", exact: true }).click();
     await page.getByRole("textbox", { name: "Поиск игроков" }).fill("builder");
     await expect(page.locator("tbody tr")).toHaveCount(1);
-    await page
-      .getByLabel("Статус builder", { exact: true })
-      .selectOption("pending");
+    await page.getByRole('button', { name: 'Статус builder', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Перевести в ожидание', exact: true }).click();
     await expect(page.locator(".notice.success")).toContainText(
       "Статус игрока builder обновлён",
     );
+    await page.getByRole('button', { name: 'Действия builder', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Заблокировать', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Статус builder', exact: true })).toContainText('Заблокирован');
+    await page.getByRole('button', { name: 'Действия builder', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Разблокировать', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Статус builder', exact: true })).toContainText('Ожидает');
     await page.getByLabel("Фильтр по статусу").selectOption("confirmed");
     await expect(
-      page.getByRole("heading", { name: "Игроки не найдены" }),
+      page.getByRole("heading", { name: "По вашему запросу ничего не найдено" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Сбросить фильтры" }).click();
     await expect(page.locator("tbody tr")).toHaveCount(4);
     await screenshot("players-desktop.png");
+  });
+
+  await t.test('player table pagination, identifiers, menus, loading and errors', async () => {
+    const clock = Date.now();
+    let mockPlayers = Array.from({ length: 57 }, (_, index) => ({
+      login: `test_${String(index).padStart(3, '0')}`, nickname: `Player ${index}`, email: `person${index}@example.test`,
+      registrationStatus: index % 3 === 0 ? 'pending' : 'confirmed', role: index % 5 === 0 ? 'admin' : 'player',
+      registeredAt: clock - index * 86400000, lastLogin: index % 2 ? clock - index * 3600000 : null,
+      telegramUsername: `telegram_${index}`, discordUsername: `discord_${index}`, telegramId: String(100000 + index), discordId: String(200000 + index),
+      canManageRoles: false, frozenUntil: null, moderationReason: '',
+    }));
+    let fail = false;
+    let delay = 0;
+    const handler = async route => {
+      if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+      await route.fulfill({ status: fail ? 503 : 200, contentType: 'application/json', body: JSON.stringify(fail ? { error: 'Тестовая ошибка загрузки' } : mockPlayers) });
+    };
+    await page.route('**/api/admin/players', handler);
+    try {
+      await page.goto(`${app.baseURL}/players`);
+      await expect(page.locator('tbody tr')).toHaveCount(25);
+      await expect(page.getByRole('checkbox')).toHaveCount(0);
+      await expect(page.getByRole('columnheader')).toHaveCount(6);
+      const rowHeight = await page.locator('tbody tr').first().evaluate(row => row.getBoundingClientRect().height);
+      assert.ok(rowHeight >= 60 && rowHeight <= 68, `Row height: ${rowHeight}`);
+      const scroll = await page.locator('.players-table-scroll').evaluate(el => ({ height: el.clientHeight, scroll: el.scrollHeight }));
+      assert.equal(scroll.height, scroll.scroll);
+      await page.getByRole('button', { name: 'Следующая страница' }).click();
+      await expect(page.locator('.players-pagination nav')).toContainText('2 / 3');
+      await expect(page.locator('tbody tr').first()).toContainText('test_025');
+      await page.getByLabel('Игроков на странице').selectOption('50');
+      await expect(page.locator('tbody tr')).toHaveCount(50);
+      await page.getByLabel('Игроков на странице').selectOption('100');
+      await expect(page.locator('tbody tr')).toHaveCount(57);
+      for (const query of ['TEST_007', 'Player 7', 'person7@', 'telegram_7', 'discord_7', '100007', '200007']) {
+        await page.getByLabel('Поиск игроков', { exact: true }).fill(query);
+        await expect(page.locator('tbody tr')).toHaveCount(1);
+        await expect(page.locator('tbody tr')).toContainText('test_007');
+      }
+      await page.getByRole('button', { name: 'Очистить поиск игроков' }).click();
+      await page.getByLabel('Фильтр по роли').selectOption('admin');
+      await expect(page.locator('tbody tr')).toHaveCount(12);
+      await page.getByLabel('Фильтр по статусу').selectOption('pending');
+      await expect(page.locator('tbody tr')).toHaveCount(4);
+      await page.getByLabel('Фильтр по активности').selectOption('never');
+      await expect(page.locator('tbody tr')).toHaveCount(2);
+      await page.getByLabel('Поиск игроков', { exact: true }).fill('absent');
+      await expect(page.getByText('По вашему запросу ничего не найдено', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Сбросить фильтры' }).click();
+      await page.getByLabel('Игроков на странице').selectOption('25');
+      await page.getByRole('button', { name: 'Последний вход', exact: true }).click();
+      await expect(page.getByRole('columnheader', { name: 'Последний вход' })).toHaveAttribute('aria-sort', 'ascending');
+      await expect(page.locator('tbody tr').first()).toContainText('test_055');
+      await page.getByRole('button', { name: 'Последний вход', exact: true }).click();
+      await expect(page.locator('tbody tr').first()).toContainText('test_001');
+      const actions = page.getByRole('button', { name: 'Действия test_001', exact: true });
+      await actions.focus();
+      await page.keyboard.press('ArrowDown');
+      await expect(page.getByRole('menuitem', { name: 'Открыть профиль', exact: true })).toBeFocused();
+      await page.keyboard.press('End');
+      await expect(page.getByRole('menuitem', { name: 'Заблокировать', exact: true })).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
+      await expect(actions).toBeFocused();
+      await actions.click();
+      await page.getByRole('menuitem', { name: 'Изменить статус', exact: true }).click();
+      await expect(page.getByRole('menu', { name: 'Статус test_001', exact: true })).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('button', { name: 'Статус test_001', exact: true })).toBeFocused();
+      await actions.click();
+      await page.getByRole('heading', { name: 'Люди, которые создают мир', exact: true }).click();
+      await expect(page.getByRole('menu')).toHaveCount(0);
+      await screenshot('players-dense-desktop.png');
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(page.getByRole('button', { name: 'Обновить', exact: true })).toBeVisible();
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      await page.locator('.players-table-scroll').evaluate(el => { el.scrollLeft = el.scrollWidth; });
+      await actions.click();
+      await expect(page.getByRole('menuitem', { name: 'Открыть профиль', exact: true })).toBeInViewport();
+      await page.keyboard.press('Escape');
+      await screenshot('players-dense-mobile.png');
+      await page.setViewportSize({ width: 1440, height: 1100 });
+      delay = 600;
+      await page.getByRole('button', { name: 'Обновить', exact: true }).click();
+      await expect(page.locator('.player-skeleton-row')).toHaveCount(25);
+      await expect(page.locator('.player-skeleton-row')).toHaveCount(0);
+      delay = 0;
+      fail = true;
+      await page.getByRole('button', { name: 'Обновить', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Не удалось загрузить игроков', exact: true })).toBeVisible();
+      fail = false;
+      await page.getByRole('button', { name: 'Повторить', exact: true }).click();
+      await expect(page.locator('tbody tr')).toHaveCount(25);
+      fail = true;
+      await page.reload();
+      await expect(page.getByRole('heading', { name: 'Не удалось загрузить игроков', exact: true })).toBeVisible();
+      fail = false;
+      mockPlayers = [];
+      await page.getByRole('button', { name: 'Повторить', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Игроков пока нет', exact: true })).toBeVisible();
+    } finally {
+      await page.unroute('**/api/admin/players', handler);
+      await page.setViewportSize({ width: 1440, height: 1100 });
+    }
   });
 
   await t.test("launcher auth permits pending and rejects banned users and tokens", async () => {
@@ -307,7 +416,8 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
   await t.test("player actions, confirmation, tabbed history and global log filters", async () => {
     await page.goto(`${app.baseURL}/players`);
     await page.getByLabel('Поиск игроков', { exact: true }).fill('alex');
-    await page.getByRole('link', { name: 'Действия', exact: true }).click();
+    await page.getByRole('button', { name: 'Действия alex', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Открыть профиль', exact: true }).click();
     await expect(page.getByRole('tab', { name: 'Данные об игроке' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('heading', { name: 'Доступ к лаунчеру' })).toBeVisible();
     await page.getByLabel('Причина ограничения', { exact: true }).fill('Проверка интерфейса');

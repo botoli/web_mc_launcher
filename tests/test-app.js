@@ -32,7 +32,8 @@ async function startTestApp() {
     const env = {
         ...db.env, PORT: String(backendPort), FRONTEND_PORT: String(frontendPort),
         BACKEND_URL: `http://127.0.0.1:${backendPort}`, DOMAIN: 'localhost',
-        USE_HTTPS: 'false', JWT_SECRET: 'integration-test-only-secret',
+        USE_HTTPS: 'false', HTTPS_ENABLED: 'false', PUBLIC_URL: `http://localhost:${backendPort}`,
+        JWT_SECRET: 'integration-test-only-secret',
         PLAYER_EVENTS_SECRET: 'integration-events-secret-32-characters',
         NODE_ENV: 'production', NODE_PATH: path.join(root, 'node_modules'),
         NEXT_TELEMETRY_DISABLED: '1'

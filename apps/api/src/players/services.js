@@ -93,11 +93,27 @@ function createPlayerServices({ users, saveUsers, dataDir, now = Date.now, stora
             if (!own(users, req.params.login)) return res.status(404).json({ error: 'Игрок не найден' });
             res.json(profile(req.params.login));
         });
+        app.get('/api/admin/logs/options', adminRequired, (req, res) => {
+            const players = new Map(Object.keys(users).map(login => [login, { ...profile(login), id: login }]));
+            for (const event of getEvents()) {
+                const id = event.login || (event.telegramId ? `telegram:${event.telegramId}` : `discord:${event.discordId}`);
+                if (!players.has(id)) players.set(id, { id, login: event.login, nickname: event.nickname,
+                    telegramId: event.telegramId, discordId: event.discordId,
+                    telegramUsername: event.telegramUsername, discordUsername: event.discordUsername });
+            }
+            res.json({ players: [...players.values()].map(({ id, login, nickname, telegramId, discordId, telegramUsername, discordUsername }) =>
+                ({ id, login, nickname, telegramId, discordId, telegramUsername, discordUsername })),
+                actions: Object.entries(journalActions).flatMap(([category, actions]) => [...actions].map(value => ({ value, category }))) });
+        });
         app.get(['/api/admin/logs', '/api/admin/players/:login/actions'], adminRequired, (req, res) => {
             const login = req.params.login || text(req.query.login, 100);
             if (login && !own(users, login)) return res.status(404).json({ error: 'Игрок не найден' });
             const category = text(req.query.category, 20), source = text(req.query.source, 40);
             const outcome = text(req.query.outcome, 20), query = text(req.query.q, 200).toLowerCase();
+            const values = value => (Array.isArray(value) ? value : [value]).flatMap(item => text(item, 5000).split(',')).filter(Boolean);
+            const players = values(req.query.players), actions = values(req.query.actions), sources = values(req.query.source);
+            const sort = text(req.query.sort, 20) || 'date', direction = req.query.direction === 'asc' ? 1 : -1;
+            if (!['date', 'player', 'outcome'].includes(sort)) return res.status(400).json({ error: 'Некорректная сортировка' });
             const from = req.query.from ? Date.parse(req.query.from) : null;
             const to = req.query.to ? Date.parse(req.query.to) : null;
             if ((from !== null && !Number.isFinite(from)) || (to !== null && !Number.isFinite(to)) || (from !== null && to !== null && from > to))
@@ -105,12 +121,20 @@ function createPlayerServices({ users, saveUsers, dataDir, now = Date.now, stora
             const requestedPage = Number(req.query.page || 1), requestedLimit = Number(req.query.limit || 30);
             if (!Number.isSafeInteger(requestedPage) || requestedPage < 1 || !Number.isSafeInteger(requestedLimit) || requestedLimit < 1)
                 return res.status(400).json({ error: 'Некорректные параметры страницы' });
-            const page = requestedPage, limit = Math.min(100, requestedLimit);
+            const limit = Math.min(100, requestedLimit);
             const found = getEvents().filter(e => (!login || e.login === login) && (!category || e.category === category) &&
-                (!source || e.source === source) && (!outcome || e.outcome === outcome) &&
+                (!players.length || players.includes(e.login) || (!e.login && (players.includes(`telegram:${e.telegramId}`) || players.includes(`discord:${e.discordId}`)))) &&
+                (!actions.length || actions.includes(e.action)) && (!sources.length || sources.includes(e.source)) && (!outcome || e.outcome === outcome) &&
                 (from === null || e.at >= from) && (to === null || e.at <= to) &&
                 (!query || [e.login, e.nickname, users[e.login]?.nickname, e.ip, e.action, e.actor, e.target, e.bot, e.reason, e.telegramId, e.discordId, e.telegramUsername, e.discordUsername].some(v => String(v || '').toLowerCase().includes(query))));
-            res.json({ items: found.slice().reverse().slice((page - 1) * limit, page * limit), total: found.length, page, limit });
+            found.sort((a, b) => {
+                const comparison = sort === 'date' ? a.at - b.at : sort === 'player'
+                    ? (a.nickname || a.login).localeCompare(b.nickname || b.login, 'ru', { numeric: true, sensitivity: 'base' })
+                    : a.outcome.localeCompare(b.outcome);
+                return comparison * direction || b.at - a.at || b.id.localeCompare(a.id);
+            });
+            const page = Math.min(requestedPage, Math.max(1, Math.ceil(found.length / limit)));
+            res.json({ items: found.slice((page - 1) * limit, page * limit), total: found.length, page, limit });
         });
         app.post('/api/admin/players/:login/moderation', adminRequired, (req, res) => {
             const { login } = req.params;
