@@ -13,10 +13,13 @@ import {
   X,
   ScrollText,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { api, errorMessage } from "@/lib/api";
 import type { Profile } from "@/lib/types";
-import { Notice } from "./ui";
+import { Notice, RoleBadge } from "./ui";
+import { BlockLoader } from "./block-loader";
+import { useMenuPresence } from "./use-menu-presence";
 
 const links = [
   { href: "/", label: "Сборка", icon: Box },
@@ -25,6 +28,9 @@ const links = [
   { href: "/logs", label: "Логи", icon: ScrollText },
   { href: "/profile", label: "Мой профиль", icon: UserRound },
 ];
+function NavigationFeedback({ pending }: { pending: boolean }) {
+  return pending ? createPortal(<div className="navigation-feedback"><BlockLoader compact label="Загружаем страницу…" /></div>, document.body) : null;
+}
 export function Brand() {
   return (
     <Link href="/" className="brand" aria-label="Minecraft Launcher — главная">
@@ -46,6 +52,13 @@ export function Shell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [departing, setDeparting] = useState(false);
+  useEffect(() => {
+    const restored = () => setDeparting(false);
+    window.addEventListener('pageshow', restored);
+    return () => window.removeEventListener('pageshow', restored);
+  }, []);
+  const scrimPresent = useMenuPresence(open);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function logout() {
@@ -73,9 +86,12 @@ export function Shell({
           {open ? <X /> : <Menu />}
         </button>
       </div>
-      {open && (
+      {scrimPresent && (
         <button
           className="sidebar-scrim"
+          data-state={open ? 'open' : 'closed'}
+          inert={!open}
+          aria-hidden={!open}
           aria-label="Закрыть меню"
           onClick={() => setOpen(false)}
         />
@@ -85,17 +101,20 @@ export function Shell({
         <span className="nav-caption">Управление сервером</span>
         <nav aria-label="Основная навигация">
           {links.filter(({ href }) => user.role === 'admin' || href === '/profile').map(({ href, label, icon: Icon }) => (
-            <Link
+            <a
               key={href}
               href={href}
-              onClick={() => setOpen(false)}
+              onClick={event => {
+                setOpen(false);
+                if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) setDeparting(true);
+              }}
               className={`nav-link ${pathname === href || (href !== '/' && pathname.startsWith(href + '/')) ? "active" : ""}`}
               aria-current={pathname === href || (href !== '/' && pathname.startsWith(href + '/')) ? "page" : undefined}
             >
               <Icon size={19} />
               {label}
               {pathname === href && <span className="nav-marker" />}
-            </Link>
+            </a>
           ))}
         </nav>
         <div className="sidebar-bottom">
@@ -110,13 +129,13 @@ export function Shell({
               Кабинет игрока <ArrowUpRight size={15} />
             </Link>
           </div>
-          <div className="account">
+          <div className="account" data-player-status={user.registrationStatus} data-player-role={user.role}>
             <span className="avatar">
               {user.login.slice(0, 2).toUpperCase()}
             </span>
             <div>
               <strong>{user.login}</strong>
-              <small>{user.role === 'admin' ? 'Админ' : 'Игрок'}</small>
+              <RoleBadge role={user.role} />
             </div>
             <button
               className="icon-button"
@@ -130,6 +149,7 @@ export function Shell({
           </div>
         </div>
       </aside>
+      <NavigationFeedback pending={departing} />
       <main className="main-content">
         <div className="topbar">
           <span>Рабочее пространство</span>
@@ -139,8 +159,9 @@ export function Shell({
           </Link>
         </div>
         <div className="page-content">
+          <noscript><p className="notice error">JavaScript отключён. Данные доступны для просмотра; для поиска, фильтров и действий включите JavaScript для этого сайта.</p></noscript>
           <Notice message={error} />
-          {children}
+          <div className="page-enter">{children}</div>
         </div>
         <footer className="page-footer">
           <span>Minecraft Launcher</span>

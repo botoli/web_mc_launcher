@@ -25,8 +25,6 @@ function formFrom(config: BuildConfig) {
     loader: config.loader,
     loaderVersion: config.loaderVersion,
     javaVersion: String(config.javaVersion),
-    minMemory: String(config.minMemory),
-    maxMemory: String(config.maxMemory),
     serverIP: config.servers[0]?.address || "",
   };
 }
@@ -66,13 +64,6 @@ export function BuildDashboard({
   }
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    if (Number(form.minMemory) > Number(form.maxMemory)) {
-      setNotice({
-        message: "Минимальная память не может превышать максимальную.",
-        kind: "error",
-      });
-      return;
-    }
     setBusy(true);
     setNotice({ message: "", kind: "success" });
     try {
@@ -253,30 +244,8 @@ export function BuildDashboard({
                 </div>
               </div>
               <div className="form-section">
-                <h3>Память и подключение</h3>
+                <h3>Подключение</h3>
                 <div className="form-grid">
-                  <Field label="Минимальная память, МБ">
-                    <input
-                      id="minMemory"
-                      type="number"
-                      min="512"
-                      step="1"
-                      required
-                      value={form.minMemory}
-                      onChange={(e) => update("minMemory", e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Максимальная память, МБ">
-                    <input
-                      id="maxMemory"
-                      type="number"
-                      min="512"
-                      step="1"
-                      required
-                      value={form.maxMemory}
-                      onChange={(e) => update("maxMemory", e.target.value)}
-                    />
-                  </Field>
                   <div className="span-two">
                     <Field
                       label="Адрес игрового сервера"

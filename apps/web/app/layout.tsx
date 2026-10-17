@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/manrope";
 import "./globals.css";
+import "./admin-motion.css";
 
 export const metadata: Metadata = {
   title: { default: "Minecraft Launcher", template: "%s · Minecraft Launcher" },

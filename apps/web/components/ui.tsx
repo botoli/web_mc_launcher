@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Check, X } from "lucide-react";
+import { AlertCircle, Check, ShieldCheck, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { PlayerStatus } from "@/lib/types";
 
@@ -54,6 +54,11 @@ export function StatusBadge({ status }: { status: PlayerStatus }) {
       {labels[status] || status}
     </span>
   );
+}
+export function RoleBadge({ role }: { role: 'admin' | 'player' }) {
+  return role === 'admin'
+    ? <span className="badge role-admin"><ShieldCheck size={13} aria-hidden="true" />Админ</span>
+    : <span className="player-role-label">Игрок</span>;
 }
 export function PageHeading({
   title,

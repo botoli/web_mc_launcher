@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import { useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useMenuPresence } from './use-menu-presence';
 
 export type MenuItem = {
   label: string; href?: string; onSelect?: () => void; disabled?: boolean;
@@ -18,6 +19,7 @@ export function DropdownMenu({ label, children, items, className = 'icon-button'
   const trigger = buttonRef || ownRef;
   const menu = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const present = useMenuPresence(open);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const lastOnOpen = useRef(false);
   function close(restoreFocus = false) {
@@ -62,7 +64,7 @@ export function DropdownMenu({ label, children, items, className = 'icon-button'
           event.preventDefault(); lastOnOpen.current = event.key === 'ArrowUp'; setOpen(true);
         } else if (event.key === 'Escape') close(true);
       }}>{children}</button>
-    {open && createPortal(<div ref={menu} id={id} role="menu" aria-label={label} className="dropdown-menu" style={position}
+    {present && createPortal(<div ref={menu} id={id} role="menu" aria-label={label} className="dropdown-menu" style={position} data-state={open ? 'open' : 'closed'} inert={!open} aria-hidden={!open}
       onKeyDown={event => {
         const nodes = Array.from(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)') || []);
         const current = nodes.indexOf(document.activeElement as HTMLElement);

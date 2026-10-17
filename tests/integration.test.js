@@ -200,7 +200,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await screenshot("profile-desktop.png");
   });
 
-  await t.test("build validation, save, persistence and reset", async () => {
+  await t.test("build save, persistence and reset", async () => {
     await page.getByRole("link", { name: "Сборка", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "Твоя следующая сборка" }),
@@ -208,34 +208,24 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await expect(
       page.getByRole("button", { name: "Сохранить сборку" }),
     ).toBeDisabled();
-    await page
-      .getByLabel("Минимальная память, МБ", { exact: true })
-      .fill("8192");
-    await page.getByRole("button", { name: "Сохранить сборку" }).click();
-    await expect(page.locator(".notice.error")).toContainText(
-      "Минимальная память",
-    );
-    await page
-      .getByLabel("Минимальная память, МБ", { exact: true })
-      .fill("2048");
-    await page
-      .getByLabel("Максимальная память, МБ", { exact: true })
-      .fill("6144");
-    await page.getByLabel("Версия Java", { exact: true }).fill("21");
+    const original = (await app.snapshot()).settings.build;
+    await page.getByLabel("Адрес игрового сервера", { exact: true }).fill("play.example.test:25565");
     await page.getByRole("button", { name: "Сохранить сборку" }).click();
     await expect(page.locator(".notice.success")).toContainText(
       "Сборка сохранена",
     );
     const saved = (await app.snapshot()).settings.build;
-    assert.equal(saved.maxMemory, 6144);
+    assert.equal(saved.minMemory, original.minMemory);
+    assert.equal(saved.maxMemory, original.maxMemory);
+    assert.equal(saved.servers[0].address, "play.example.test:25565");
     assert.equal(saved.launcherServer, `http://localhost:${app.backendPort}`);
     await page
-      .getByLabel("Максимальная память, МБ", { exact: true })
-      .fill("4096");
+      .getByLabel("Адрес игрового сервера", { exact: true })
+      .fill("other.example.test:25565");
     await page.getByRole("button", { name: "Отменить", exact: true }).click();
     await expect(
-      page.getByLabel("Максимальная память, МБ", { exact: true }),
-    ).toHaveValue("6144");
+      page.getByLabel("Адрес игрового сервера", { exact: true }),
+    ).toHaveValue("play.example.test:25565");
     await screenshot("dashboard-desktop.png");
   });
 
@@ -363,6 +353,27 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await screenshot("players-desktop.png");
   });
 
+  await t.test('player and log tables render before browser scripts execute', async () => {
+    for (const scriptsEnabled of [false, true]) {
+      const slowContext = await browser.newContext({ javaScriptEnabled: scriptsEnabled });
+      try {
+        await slowContext.addCookies(await context.cookies());
+        const slowPage = await slowContext.newPage();
+        if (scriptsEnabled) await slowPage.route('**/*', route => route.request().resourceType() === 'script' ? route.abort() : route.continue());
+        const requests = [];
+        slowPage.on('request', request => { if (request.url().includes('/api/admin/')) requests.push(request.url()); });
+        await slowPage.goto(`${app.baseURL}/players`);
+        await expect(slowPage.locator('.players-table tbody tr')).toHaveCount(4);
+        await expect(slowPage.locator('.player-skeleton-row')).toHaveCount(0);
+        await slowPage.goto(`${app.baseURL}/logs?players=alex&source=website`);
+        await expect(slowPage.locator('.event-row').first()).toBeVisible();
+        await expect(slowPage.locator('.event-skeleton')).toHaveCount(0);
+        assert.equal(await slowPage.locator('.event-row').count() > 0, true);
+        assert.equal(requests.length, 0, 'initial rows must come with HTML, without client API requests');
+      } finally { await slowContext.close(); }
+    }
+  });
+
   await t.test('player table pagination, identifiers, menus, loading and errors', async () => {
     const clock = Date.now();
     let mockPlayers = Array.from({ length: 57 }, (_, index) => ({
@@ -381,6 +392,8 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await page.route('**/api/admin/players', handler);
     try {
       await page.goto(`${app.baseURL}/players`);
+      // Initial rows are server-rendered; the refresh button exercises client requests.
+      await page.getByRole('button', { name: 'Обновить', exact: true }).click();
       await expect(page.locator('tbody tr')).toHaveCount(25);
       await expect(page.getByRole('checkbox')).toHaveCount(0);
       await expect(page.getByRole('columnheader')).toHaveCount(6);
@@ -456,6 +469,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
       await expect(page.locator('tbody tr')).toHaveCount(25);
       fail = true;
       await page.reload();
+      await page.getByRole('button', { name: 'Обновить', exact: true }).click();
       await expect(page.getByRole('heading', { name: 'Не удалось загрузить игроков', exact: true })).toBeVisible();
       fail = false;
       mockPlayers = [];
@@ -546,6 +560,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await expect(region).toHaveAttribute('aria-busy', 'false');
     const heights = await page.locator('.event-row').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
     assert.ok(heights.length > 0 && heights.every(height => height >= 48 && height <= 56), JSON.stringify(heights));
+    await expect(page.getByRole('button', { name: 'Игроки', exact: true })).toBeEnabled();
     await page.getByRole('button', { name: 'Игроки', exact: true }).focus();
     await page.keyboard.press('ArrowDown');
     await page.getByLabel('Поиск по игроку или ID...', { exact: true }).fill('alex');
@@ -712,7 +727,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await page.getByRole("button", { name: "Открыть меню" }).click();
     await page.getByRole("button", { name: "Выйти из аккаунта" }).click();
     await expect(
-      page.getByRole("heading", { name: "С возвращением" }),
+      page.getByRole("heading", { name: "Вход в панель", exact: true }),
     ).toBeVisible();
     assert.equal(
       (await context.cookies()).some(

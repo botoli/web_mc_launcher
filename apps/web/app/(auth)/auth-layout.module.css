@@ -1,0 +1,432 @@
+.layout {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 55% 45%;
+  height: 100dvh;
+  overflow: hidden;
+  background: #101019;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 42% 35%, #53346c66, transparent 55%),
+    radial-gradient(ellipse at 18% 78%, #9a431a33, transparent 45%),
+    #101019;
+}
+
+.layout .background {
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.scene[data-loaded="true"] .background {
+  animation: sceneReveal 1.8s cubic-bezier(0.2, 0.65, 0.3, 1) both;
+}
+
+.scene[data-loaded="true"][data-finished="true"] .background {
+  animation: none;
+  opacity: 1;
+}
+
+.scene .fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+}
+
+.atmosphere {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.scene[data-loaded="true"] .atmosphere {
+  animation: mistDepart 1.8s ease-out both;
+}
+
+.halo {
+  position: absolute;
+  top: 12%;
+  left: 20%;
+  width: 46%;
+  height: 58%;
+  background: radial-gradient(ellipse, #bb85f52b, #a066ec0d 45%, transparent 70%);
+  animation: moonGlow 3.6s ease-in-out infinite alternate;
+}
+
+.fog,
+.fogLow {
+  position: absolute;
+  inset: 12% -20% -12%;
+  background:
+    radial-gradient(ellipse at 24% 58%, #9c83ce40, transparent 42%),
+    radial-gradient(ellipse at 76% 62%, #6f548d38, transparent 40%);
+  animation: fogDrift 7s ease-in-out infinite alternate;
+}
+
+.fogLow {
+  inset: 42% -25% -28%;
+  background:
+    radial-gradient(ellipse at 25% 68%, #da81421c, transparent 38%),
+    radial-gradient(ellipse at 65% 52%, #b59ac538, transparent 44%);
+  animation-duration: 9s;
+  animation-delay: -4s;
+  animation-direction: alternate-reverse;
+}
+
+.ember {
+  position: absolute;
+  bottom: -12px;
+  left: var(--left);
+  width: 3px;
+  height: 3px;
+  border-radius: 1px;
+  background: #f6aa66;
+  box-shadow: 0 0 9px 2px #ed813c4d;
+  opacity: 0;
+  animation: emberRise var(--duration) linear var(--delay) infinite;
+}
+
+.ember:nth-child(even) {
+  width: 2px;
+  height: 2px;
+  background: #c7a1ff;
+  box-shadow: 0 0 8px #ac78f6;
+}
+
+@keyframes sceneReveal {
+  from {
+    opacity: 0;
+    transform: scale(1.035);
+    filter: blur(9px) brightness(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0) brightness(1);
+  }
+}
+
+@keyframes mistDepart {
+  0%, 15% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes fogDrift {
+  from {
+    transform: translate3d(-4%, 2%, 0) scale(1);
+    opacity: 0.55;
+  }
+  to {
+    transform: translate3d(5%, -3%, 0) scale(1.08);
+    opacity: 0.9;
+  }
+}
+
+@keyframes moonGlow {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+
+@keyframes emberRise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(0);
+  }
+  18% { opacity: 0.65; }
+  75% { opacity: 0.4; }
+  100% {
+    opacity: 0;
+    transform: translate3d(24px, -65vh, 0) rotate(110deg);
+  }
+}
+
+.layout::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, #050609a6, transparent 52%, #07070c26),
+    linear-gradient(0deg, #05060999, transparent 28%, #08091026);
+  pointer-events: none;
+}
+
+.story {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 40px 48px 36px;
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: clamp(72px, 16vh, 145px) 0 clamp(60px, 11vh, 100px);
+}
+
+.content > :global(.badge) {
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.content h2 {
+  max-width: 540px;
+  margin: 25px 0 22px;
+  font-size: clamp(40px, 3.6vw, 64px);
+  line-height: 1.1;
+  letter-spacing: -0.06em;
+}
+
+.content h2 span {
+  color: var(--accent);
+}
+
+.content > p {
+  color: #c6c3cf;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-top: auto;
+  padding-top: 48px;
+}
+
+.features span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e2dfe9;
+  font-size: 12px;
+}
+
+.features svg {
+  color: var(--mint);
+}
+
+.storyFooter,
+.footer {
+  color: #a4a0af;
+  font-size: 11px;
+}
+
+.layout .main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  padding: 40px clamp(32px, 12vw, 212px) 36px clamp(24px, 4.8vw, 85px);
+}
+
+.main .form {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 500px;
+  margin: auto;
+  padding: 76px 44px 60px;
+  border: 1px solid #ffffff29;
+  border-radius: 28px;
+  background: #0d0d14ed;
+  box-shadow: 0 24px 80px #00000026;
+}
+
+.main .form:has(input[name="nickname"]) {
+  padding-block: 36px;
+}
+
+.layout .form h1 {
+  font-size: 30px;
+  letter-spacing: -0.045em;
+}
+
+.form :global(.auth-description) {
+  margin: 12px 0 28px;
+}
+
+.form :global(.field) {
+  margin-bottom: 20px;
+}
+
+.form input {
+  border-color: #ffffff2b;
+  background: #ffffff02;
+}
+
+.form input:focus {
+  border-color: var(--accent);
+}
+
+.form :global(.button.primary) {
+  background: linear-gradient(110deg, #ac78f6, #be85f5);
+}
+
+.form :global(.button.primary:hover:not(:disabled)) {
+  background: linear-gradient(110deg, #bb90fc, #cd9bff);
+}
+
+.main > .footer {
+  padding-top: 32px;
+  text-align: center;
+}
+
+.mobileBrand {
+  display: none;
+}
+
+@media (max-width: 1200px) {
+  .story {
+    padding-inline: 32px;
+  }
+
+  .layout .main {
+    padding-inline: 24px 40px;
+  }
+
+  .main .form {
+    padding: 52px 32px;
+  }
+}
+
+@media (max-width: 850px) {
+  .layout {
+    grid-template-columns: 45% 55%;
+  }
+
+  .story {
+    padding-inline: 24px;
+  }
+
+  .content h2 {
+    font-size: 36px;
+  }
+
+  .layout .main {
+    padding-inline: 16px 24px;
+  }
+
+  .main .form {
+    padding: 40px 24px;
+  }
+
+  .layout .form h1 {
+    font-size: 26px;
+  }
+}
+
+@media (min-width: 701px) and (max-height: 820px) {
+  .layout .main {
+    padding-block: 24px;
+  }
+
+  .main .form,
+  .main .form:has(input[name="nickname"]) {
+    padding: 24px 32px;
+  }
+
+  .layout .form h1 {
+    font-size: 26px;
+  }
+
+  .form :global(.field) {
+    margin-bottom: 10px;
+  }
+
+  .form :global(.field) label {
+    margin-bottom: 5px;
+  }
+
+  .form :global(.field) small {
+    margin-top: 3px;
+  }
+
+  .form input {
+    min-height: 40px;
+    padding-block: 8px;
+  }
+
+  .form :global(.auth-description) {
+    margin: 8px 0 18px;
+  }
+
+  .main > .footer {
+    padding-top: 20px;
+  }
+}
+
+@media (max-width: 700px) {
+  .layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .layout .background {
+    object-position: 42% center;
+  }
+
+  .story {
+    display: none;
+  }
+
+  .layout .main {
+    gap: 32px;
+    padding: 24px 20px;
+  }
+
+  .mobileBrand {
+    display: block;
+  }
+
+  .main .form {
+    padding: 36px 24px;
+    border-radius: 22px;
+  }
+
+  .layout .form h1 {
+    font-size: clamp(23px, 6vw, 29px);
+  }
+
+  .main > .footer {
+    padding-top: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene *,
+  .scene *::before,
+  .scene *::after {
+    animation: none !important;
+  }
+
+  .scene[data-loaded="true"] .background {
+    opacity: 1;
+  }
+
+  .atmosphere {
+    display: none;
+  }
+}

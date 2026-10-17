@@ -9,36 +9,52 @@ export class ApiError extends Error {
 
 export async function api<T>(
   url: string,
-  options: RequestInit = {},
+  options: RequestInit & { timeoutMs?: number } = {},
 ): Promise<T> {
-  let response: Response;
+  const { timeoutMs = options.body instanceof FormData ? 600_000 : 20_000, ...requestOptions } = options;
+  const controller = new AbortController();
+  const cancel = () => controller.abort(requestOptions.signal?.reason);
+  if (requestOptions.signal?.aborted) cancel();
+  else requestOptions.signal?.addEventListener('abort', cancel, { once: true });
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
   try {
-    response = await fetch(url, {
-      ...options,
+    const response = await fetch(url, {
+      ...requestOptions,
+      signal: controller.signal,
       credentials: "same-origin",
       cache: "no-store",
     });
-  } catch {
-    throw new ApiError(
-      "Не удалось связаться с сервером. Проверьте соединение и повторите попытку.",
-      0,
-    );
-  }
-  const data = await response.json().catch(() => null);
-  if (!response.ok || !data || data.error) {
-    if (response.status === 401 && typeof window !== "undefined") {
-      window.location.assign(
-        `/login?redirect=${encodeURIComponent(window.location.pathname)}`,
+    const data = await response.json().catch(error => {
+      if (controller.signal.aborted) throw error;
+      return null;
+    });
+    if (!response.ok || !data || data.error) {
+      if (response.status === 401 && typeof window !== "undefined") {
+        window.location.assign(
+          `/login?redirect=${encodeURIComponent(window.location.pathname)}`,
+        );
+      }
+      throw new ApiError(
+        response.status === 401
+          ? "Сессия завершена. Войдите снова."
+          : data?.error || "Не удалось выполнить запрос. Попробуйте ещё раз.",
+        response.status,
       );
     }
+    return data as T;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
     throw new ApiError(
-      response.status === 401
-        ? "Сессия завершена. Войдите снова."
-        : data?.error || "Не удалось выполнить запрос. Попробуйте ещё раз.",
-      response.status,
+      timedOut
+        ? 'Сервер не ответил вовремя. Проверьте соединение и повторите загрузку.'
+        : "Не удалось связаться с сервером. Проверьте соединение и повторите попытку.",
+      timedOut ? 408 : 0,
     );
+  } finally {
+    clearTimeout(timer);
+    requestOptions.signal?.removeEventListener('abort', cancel);
   }
-  return data as T;
 }
 export function json(method: string, body: unknown): RequestInit {
   return {

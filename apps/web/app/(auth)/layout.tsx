@@ -1,51 +1,53 @@
 import { Brand } from "@/components/shell";
-import { VoxelScene } from "@/components/voxel-scene";
 import { Blocks, ShieldCheck } from "lucide-react";
+import { AuthBackground } from "./auth-background";
+import styles from "./auth-layout.module.css";
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <main className="auth-layout">
-      <section className="auth-story">
-        <img src="./background/background.png" alt="" />
+    <main className={styles.layout}>
+      <AuthBackground />
+      <section className={styles.story}>
         <Brand />
-        <div className="auth-story-content">
+        <div className={styles.content}>
           <span className="badge neutral">
             <span className="status-dot" />
             Minecraft Launcher
           </span>
           <h2>
-            Больше, чем
-            <br />
-            просто блоки.
+            Управление <span>сервером</span>
           </h2>
           <p>
-            Одна сборка. Общий мир.
-            <br />И бесконечно много историй.
+            Сборка, моды, игроки и настройки -
+            <br />в одной панели
           </p>
-          <VoxelScene />
-          <div className="story-features">
+          <div className={styles.features}>
             <span>
               <Blocks size={18} />
-              Моды в одной сборке
+              Сборка и конфиги
             </span>
             <span>
               <ShieldCheck size={18} />
-              Твой игровой профиль
+              Игроки и журнал
             </span>
           </div>
         </div>
-        <span className="story-footer">Приключения начинаются здесь.</span>
+        <span className={styles.storyFooter}>
+          Панель управления Minecraft-сервером.
+        </span>
       </section>
 
-      <section className="auth-main">
-        <div className="auth-mobile-brand">
+      <section className={`auth-main ${styles.main}`}>
+        <div className={styles.mobileBrand}>
           <Brand />
         </div>
-        <div className="auth-form">{children}</div>
-        <footer>Minecraft Launcher · Твой мир, твои правила</footer>
+        <div className={`auth-form ${styles.form}`}>{children}</div>
+        <footer className={styles.footer}>
+          Minecraft Server · Панель управления
+        </footer>
       </section>
     </main>
   );

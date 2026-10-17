@@ -12,6 +12,7 @@ export async function serverApi<T>(path: string, returnTo = "/"): Promise<T> {
   const response = await fetch(`${backend}${path}`, {
     headers: { Cookie: `mc_launcher_token=${encodeURIComponent(token.value)}` },
     cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
   });
   if (response.status === 401)
     redirect(`/login?redirect=${encodeURIComponent(returnTo)}`);

@@ -3,17 +3,21 @@
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useMenuPresence } from './use-menu-presence';
+import { BlockLoader } from './block-loader';
 
 export type SelectOption = { value: string; label: string; description?: string; search?: string; group?: string };
 
 // DropdownMenu handles commands; this combobox keeps multiple filter choices open.
-export function MultiSelect({ label, placeholder, searchPlaceholder, options, value, onChange, loading, error, onRetry }: {
+export function MultiSelect({ label, placeholder, searchPlaceholder, options, value, onChange, loading, error, onRetry, disabled }: {
   label: string; placeholder: string; searchPlaceholder?: string; options: SelectOption[];
   value: string[]; onChange: (value: string[]) => void; loading?: boolean; error?: string; onRetry?: () => void;
+  disabled?: boolean;
 }) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null), popup = useRef<HTMLDivElement>(null), searchInput = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false), [search, setSearch] = useState('');
+  const present = useMenuPresence(open);
   const [position, setPosition] = useState({ top: 0, left: 0, maxHeight: 360 });
   const available = useMemo<SelectOption[]>(() => [...options, ...value.filter(key => !options.some(option => option.value === key)).map(key => ({ value: key, label: key }))], [options, value]);
   const filtered = available.filter(option => `${option.label} ${option.description || ''} ${option.search || ''}`.toLocaleLowerCase('ru-RU').includes(search.trim().toLocaleLowerCase('ru-RU')));
@@ -49,13 +53,13 @@ export function MultiSelect({ label, placeholder, searchPlaceholder, options, va
   }, [open]);
   function toggle(key: string) { onChange(value.includes(key) ? value.filter(item => item !== key) : [...value, key]); }
   return <>
-    <button ref={trigger} type="button" className={`multi-select-trigger${value.length ? ' has-value' : ''}`} aria-label={label} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined}
+    <button ref={trigger} type="button" disabled={disabled} className={`multi-select-trigger${value.length ? ' has-value' : ''}`} aria-label={label} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined}
       title={value.length ? available.filter(option => value.includes(option.value)).map(option => option.label).join(', ') : placeholder}
       onClick={() => { setSearch(''); setOpen(current => !current); }} onKeyDown={event => {
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setSearch(''); setOpen(true); }
         if (event.key === 'Escape') close(true);
       }}><span>{summary}</span><ChevronDown size={14} aria-hidden="true" /></button>
-    {open && createPortal(<div ref={popup} id={id} role="dialog" aria-label={label} className="dropdown-menu multi-select-popup" style={position}
+    {present && createPortal(<div ref={popup} id={id} role="dialog" aria-label={label} className="dropdown-menu multi-select-popup" style={position} data-state={open ? 'open' : 'closed'} inert={!open} aria-hidden={!open}
       onKeyDown={event => {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(true); }
         if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && (!(event.target instanceof HTMLInputElement) || event.key.startsWith('Arrow'))) {
@@ -70,7 +74,7 @@ export function MultiSelect({ label, placeholder, searchPlaceholder, options, va
       <div className="search-field multi-select-search"><Search size={15} aria-hidden="true" /><input ref={searchInput} aria-label={searchPlaceholder || `Поиск: ${label}`} placeholder={searchPlaceholder || 'Поиск…'} value={search} onChange={event => setSearch(event.target.value)} /></div>
       <div className="multi-select-summary"><span aria-live="polite">Выбрано: {value.length}</span><button type="button" disabled={!value.length} onClick={() => { onChange([]); searchInput.current?.focus(); }}>Очистить</button></div>
       {error ? <div className="multi-select-state" role="alert">{error}<button type="button" className="button secondary" onClick={onRetry}>Повторить</button></div>
-        : loading ? <p className="multi-select-state" role="status">Загрузка…</p>
+        : loading ? <BlockLoader compact label="Загружаем фильтры…" />
           : <div role="listbox" aria-label={label} aria-multiselectable="true" className="multi-select-options">
             {filtered.map((option, index) => <FragmentOption key={option.value} option={option} showGroup={Boolean(option.group && option.group !== filtered[index - 1]?.group)} selected={value.includes(option.value)} toggle={toggle} />)}
             {!filtered.length && <p className="multi-select-state">Ничего не найдено</p>}

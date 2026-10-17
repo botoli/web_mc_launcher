@@ -18,6 +18,8 @@ import { api, errorMessage, formatDateTime } from "@/lib/api";
 import type { EventsPage, PlayerEvent } from "@/lib/types";
 import { MultiSelect, type SelectOption } from "./multi-select";
 import { DropdownMenu } from "./dropdown-menu";
+import { BlockLoader } from "./block-loader";
+import { defaultLogFilters as defaults, logQuery, parseLogFilters, type LogFilters as Filters } from "@/lib/log-filters";
 
 const actions: Record<string, string> = {
   login: "Вход",
@@ -108,30 +110,6 @@ type LogOptions = {
   players: LogPlayer[];
   actions: { value: string; category: string }[];
 };
-type Filters = {
-  players: string[];
-  actions: string[];
-  sources: string[];
-  outcome: string;
-  from: string;
-  to: string;
-  page: number;
-  limit: number;
-  sort: "date" | "player" | "outcome";
-  direction: "asc" | "desc";
-};
-const defaults: Filters = {
-  players: [],
-  actions: [],
-  sources: [],
-  outcome: "",
-  from: "",
-  to: "",
-  page: 1,
-  limit: 25,
-  sort: "date",
-  direction: "desc",
-};
 const time = new Intl.DateTimeFormat("ru-RU", {
   hour: "2-digit",
   minute: "2-digit",
@@ -145,41 +123,7 @@ const date = new Intl.DateTimeFormat("ru-RU", {
   timeZone: "Europe/Moscow",
 });
 function readFilters(): Filters {
-  const params = new URLSearchParams(window.location.search);
-  const list = (key: string) => [
-    ...new Set(
-      params
-        .getAll(key)
-        .flatMap((value) => value.split(","))
-        .filter(Boolean),
-    ),
-  ];
-  const validDate = (key: string) => {
-    const value = params.get(key) || "";
-    return /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-      Number.isFinite(Date.parse(value))
-      ? value
-      : "";
-  };
-  const page = Number(params.get("page"));
-  return {
-    players: list("players"),
-    actions: list("actions"),
-    sources: list("source"),
-    outcome: Object.hasOwn(outcomes, params.get("outcome") || "")
-      ? params.get("outcome")!
-      : "",
-    from: validDate("from"),
-    to: validDate("to"),
-    page: Number.isSafeInteger(page) && page > 0 ? page : 1,
-    limit: [25, 50, 100].includes(Number(params.get("limit")))
-      ? Number(params.get("limit"))
-      : 25,
-    sort: ["date", "player", "outcome"].includes(params.get("sort") || "")
-      ? (params.get("sort") as Filters["sort"])
-      : "date",
-    direction: params.get("direction") === "asc" ? "asc" : "desc",
-  };
+  return parseLogFilters(new URLSearchParams(window.location.search));
 }
 function writeFilters(filters: Filters, replace = false) {
   const url = new URL(window.location.href);
@@ -278,18 +222,20 @@ function EventDetails({ event }: { event: PlayerEvent }) {
 export function LogViewer({
   login,
   category = "",
+  initialData, initialFilters,
 }: {
   login?: string;
   category?: string;
+  initialData?: EventsPage; initialFilters?: Filters;
 }) {
   const tableRegion = useRef<HTMLDivElement>(null);
-  const [filters, setFilters] = useState<Filters>(defaults),
+  const [filters, setFilters] = useState<Filters>(initialFilters || defaults),
     [ready, setReady] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null),
     [refresh, setRefresh] = useState(0);
-  const [data, setData] = useState<EventsPage | null>(null),
+  const [data, setData] = useState<EventsPage | null>(initialData || null),
     [error, setError] = useState(""),
-    [loading, setLoading] = useState(true);
+    [loading, setLoading] = useState(!initialData);
   const [options, setOptions] = useState<LogOptions>({
       players: [],
       actions: [],
@@ -297,6 +243,7 @@ export function LogViewer({
     [optionsLoading, setOptionsLoading] = useState(true),
     [optionsError, setOptionsError] = useState("");
   const [optionsRefresh, setOptionsRefresh] = useState(0);
+  const initialQuery = useRef(initialData ? logQuery(initialFilters || defaults, login, category).toString() : null);
   useEffect(() => {
     const region = tableRegion.current, scrollPage = region?.closest('.page-content');
     if (!region || !scrollPage) return;
@@ -312,7 +259,10 @@ export function LogViewer({
     return () => { observer.disconnect(); scrollPage.removeEventListener('scroll', pinHeader); window.removeEventListener('resize', pinHeader); };
   }, []);
   useEffect(() => {
-    if (!login) setFilters(readFilters());
+    if (!login) {
+      if (initialFilters) writeFilters(initialFilters, true);
+      else setFilters(readFilters());
+    }
     setReady(true);
     const restore = () => {
       if (!login) {
@@ -322,7 +272,7 @@ export function LogViewer({
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
-  }, [login]);
+  }, [login, initialFilters]);
   function change(patch: Partial<Filters>, replace = false) {
     const next = { ...filters, page: 1, ...patch };
     if (!login) writeFilters(next, replace);
@@ -345,23 +295,15 @@ export function LogViewer({
   }, [optionsRefresh, refresh]);
   useEffect(() => {
     if (!ready) return;
+    const params = logQuery(filters, login, category);
+    if (refresh === 0 && initialQuery.current === params.toString()) {
+      initialQuery.current = null;
+      return;
+    }
+    initialQuery.current = null;
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    const params = new URLSearchParams({
-      page: String(filters.page),
-      limit: String(filters.limit),
-      sort: filters.sort,
-      direction: filters.direction,
-    });
-    if (login) params.set("login", login);
-    if (category) params.set("category", category);
-    for (const key of ["players", "actions", "sources"] as const)
-      for (const value of filters[key])
-        params.append(key === "sources" ? "source" : key, value);
-    if (filters.outcome) params.set("outcome", filters.outcome);
-    if (filters.from) params.set("from", `${filters.from}T00:00:00+03:00`);
-    if (filters.to) params.set("to", `${filters.to}T23:59:59.999+03:00`);
     api<EventsPage>(`/api/admin/logs?${params}`, { signal: controller.signal })
       .then((result) => {
         if (controller.signal.aborted) return;
@@ -439,7 +381,7 @@ export function LogViewer({
         }
       >
         <button
-          className="table-sort"
+          className="table-sort" disabled={!ready}
           onClick={() =>
             change({
               sort: key,
@@ -470,6 +412,7 @@ export function LogViewer({
         {!login && (
           <div className="log-player-filter">
             <MultiSelect
+          disabled={!ready}
               label="Игроки"
               placeholder="Выберите игроков или ID"
               searchPlaceholder="Поиск по игроку или ID..."
@@ -483,6 +426,7 @@ export function LogViewer({
           </div>
         )}
         <MultiSelect
+          disabled={!ready}
           label="Действие"
           placeholder="Все действия"
           searchPlaceholder="Поиск действия..."
@@ -494,6 +438,7 @@ export function LogViewer({
           onRetry={() => setOptionsRefresh((value) => value + 1)}
         />
         <MultiSelect
+          disabled={!ready}
           label="Источник"
           placeholder="Все источники"
           options={Object.entries(sources).map(([value, label]) => ({
@@ -504,6 +449,7 @@ export function LogViewer({
           onChange={(sources) => change({ sources })}
         />
         <select
+          disabled={!ready}
           aria-label="Результат события"
           value={filters.outcome}
           onChange={(event) => change({ outcome: event.target.value })}
@@ -519,6 +465,7 @@ export function LogViewer({
           <label className="date-filter">
             <span>С даты</span>
             <input
+              disabled={!ready}
               type="date"
               aria-label="С даты"
               value={filters.from}
@@ -529,6 +476,7 @@ export function LogViewer({
           <label className="date-filter">
             <span>По дату</span>
             <input
+              disabled={!ready}
               type="date"
               aria-label="По дату"
               value={filters.to}
@@ -537,6 +485,7 @@ export function LogViewer({
             />
           </label>
           <DropdownMenu
+            disabled={!ready}
             label="Быстрый период"
             className="icon-button log-quick-range"
             items={[
@@ -550,13 +499,13 @@ export function LogViewer({
           </DropdownMenu>
         </div>
         <div className="log-filter-buttons">
-          <button className="button secondary" onClick={reset}>
+          <button className="button secondary" disabled={!ready} onClick={reset}>
             Сбросить
           </button>
           <button
             className="button primary"
             aria-label="Обновить логи"
-            disabled={loading}
+            disabled={!ready || loading}
             onClick={() => setRefresh((value) => value + 1)}
           >
             <RefreshCw size={14} />
@@ -565,13 +514,11 @@ export function LogViewer({
         </div>
       </div>
       <div className="log-meta">
-        <span role="status">
-          {loading
-            ? "Загрузка событий…"
-            : error
+        {loading ? <BlockLoader compact label="Загрузка событий…" /> : <span role="status">
+          {error
               ? "Данные недоступны"
               : `Найдено событий: ${data?.total || 0}`}
-        </span>
+        </span>}
         <span>Время — Москва (UTC+3)</span>
       </div>
       <div
@@ -663,7 +610,7 @@ export function LogViewer({
                         : "Событий пока нет"}
                     </h3>
                     {hasFilters && (
-                      <button className="button secondary" onClick={reset}>
+                      <button className="button secondary" disabled={!ready} onClick={reset}>
                         Сбросить фильтры
                       </button>
                     )}
@@ -759,6 +706,7 @@ export function LogViewer({
                     <td className="log-details-cell">
                       <button
                         className="icon-button"
+                        disabled={!ready}
                         aria-label={`Подробности события ${event.id}`}
                         aria-expanded={expanded === event.id}
                         aria-controls={
@@ -794,6 +742,7 @@ export function LogViewer({
         <label className="log-page-size">
           Показывать
           <select
+          disabled={!ready}
             aria-label="Событий на странице"
             value={filters.limit}
             onChange={(event) => change({ limit: Number(event.target.value) })}
@@ -808,7 +757,7 @@ export function LogViewer({
         <div className="log-page-navigation">
           <button
             className="button secondary"
-            disabled={loading || Boolean(error) || filters.page <= 1}
+            disabled={!ready || loading || Boolean(error) || filters.page <= 1}
             onClick={() => change({ page: filters.page - 1 })}
           >
             Назад
@@ -818,7 +767,7 @@ export function LogViewer({
           </span>
           <button
             className="button secondary"
-            disabled={loading || Boolean(error) || filters.page >= pages}
+            disabled={!ready || loading || Boolean(error) || filters.page >= pages}
             onClick={() => change({ page: filters.page + 1 })}
           >
             Далее

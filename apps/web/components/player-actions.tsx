@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Shield, RefreshCw } from 'lucide-react';
 import { api, errorMessage, formatDateTime, json } from '@/lib/api';
 import type { Profile } from '@/lib/types';
-import { Field, Notice, PageHeading, StatusBadge } from './ui';
+import { Field, Notice, PageHeading, RoleBadge, StatusBadge } from './ui';
 import { LogViewer } from './log-viewer';
 
 const tabs = [{ id: 'data', label: 'Данные об игроке' }, { id: 'auth', label: 'Лог авторизаций' }, { id: 'connections', label: 'Подключения на сервер' }, { id: 'all', label: 'Все действия' }];
@@ -35,10 +35,10 @@ export function PlayerActions({ initial }: { initial: Profile }) {
     catch (error) { setNotice({ message: errorMessage(error), kind: 'error' }); }
     finally { setBusy(false); }
   }
-  return <>
+  return <div className="player-detail" data-player-status={player.registrationStatus} data-player-role={player.role}>
     <Link className="back-link" href="/players"><ArrowLeft size={16} />Все игроки</Link>
     <PageHeading title={player.nickname || player.login} description={`Аккаунт ${player.login} · данные и история действий`} action={<button className="button secondary" disabled={busy} onClick={refresh}><RefreshCw size={16} />Обновить данные</button>} />
-    <div className="player-flags"><StatusBadge status={player.registrationStatus} />{frozen && <span className="badge pending">Заморожен до {formatDateTime(player.frozenUntil)}</span>}</div>
+    <div className="player-flags"><StatusBadge status={player.registrationStatus} /><RoleBadge role={player.role} />{frozen && <span className="badge pending">Заморожен до {formatDateTime(player.frozenUntil)}</span>}</div>
     <Notice {...notice} />
     <div className="player-tabs" role="tablist" aria-label="Действия игрока">{tabs.map((item, index) => <button key={item.id} id={`tab-${item.id}`} type="button" role="tab" tabIndex={tab === item.id ? 0 : -1} aria-selected={tab === item.id} aria-controls="player-tab-panel" onClick={() => setTab(item.id)} onKeyDown={e => {
       let next = index;
@@ -49,7 +49,7 @@ export function PlayerActions({ initial }: { initial: Profile }) {
       else return;
       e.preventDefault(); setTab(tabs[next].id); document.getElementById(`tab-${tabs[next].id}`)?.focus();
     }}>{item.label}</button>)}</div>
-    <div id="player-tab-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+    <div key={tab} id="player-tab-panel" className="tab-content-enter" role="tabpanel" aria-labelledby={`tab-${tab}`}>
       {tab === 'data' ? <div className="player-detail-grid"><section className="panel"><h2>Данные об игроке</h2><dl className="player-data">{[
         ['Логин', player.login], ['Никнейм', player.nickname], ['Email', player.email || 'Не указан'],
         ['Telegram', player.telegramId ? `${player.telegramUsername ? '@' + player.telegramUsername + ' · ' : ''}${player.telegramId}` : 'Не привязан'], ['Discord', player.discordId ? `${player.discordUsername ? player.discordUsername + ' · ' : ''}${player.discordId}` : 'Не привязан'],
@@ -63,5 +63,5 @@ export function PlayerActions({ initial }: { initial: Profile }) {
         </section></div> : <>{tab === 'connections' && <p className="log-explanation">История фактических подключений, переданная игровым сервером. Входы в лаунчер находятся во вкладке авторизаций.</p>}<LogViewer key={tab} login={player.login} category={tab === 'all' ? '' : tab} /></>}
     </div>
     <dialog ref={dialog} className="confirm-dialog" aria-labelledby="moderation-title" onCancel={e => { e.preventDefault(); if (!busy) setAction(null); }}><h2 id="moderation-title">{action && labels[action]}?</h2><p>Игрок: <strong>{player.nickname}</strong>{action === 'freeze' && ` · срок: ${hours} ч.`}{reason && <><br />Причина: {reason}</>}</p><div className="actions"><button className="button secondary" autoFocus disabled={busy} onClick={() => setAction(null)}>Отмена</button><button className="button danger" disabled={busy} onClick={moderate}>{busy ? 'Сохранение…' : 'Подтвердить'}</button></div></dialog>
-  </>;
+  </div>;
 }
