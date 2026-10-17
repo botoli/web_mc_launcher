@@ -245,15 +245,45 @@ app.get('/api/dashboard', adminRequired, (req, res) => {
 
 // ======================== API: Auth ========================
 require('./telegram/auth').installTelegramAuth(app, {
-    users, saveUsers, dataDir: DATA_DIR, storage: database, secret: process.env.TELEGRAM_BOT_SECRET || '', audit: playerServices.audit, restriction: playerServices.restriction
+    users, saveUsers, dataDir: DATA_DIR, storage: database, secret: process.env.TELEGRAM_BOT_SECRET || '', launcherDownloadURL: publicURL, audit: playerServices.audit, restriction: playerServices.restriction
 });
 
-app.post('/api/register', (req, res) => {
+// Native POST forms also work before hydration or when browser scripts fail.
+// Launcher API responses remain JSON, including for URL-encoded API clients.
+app.post(['/api/web-auth/login', '/api/web-auth/register'], (req, res, next) => {
+    const origin = req.get('origin');
+    const sameOrigin = `${req.protocol}://${req.get('host')}`;
+    if ((origin && origin !== sameOrigin && origin !== new URL(publicURL).origin) || req.get('sec-fetch-site') === 'cross-site') {
+        return res.status(403).send('Откройте форму входа на сайте и повторите попытку.');
+    }
+    res.set('Cache-Control', 'no-store');
+    next();
+});
+
+function authResponse(req, res, data) {
+    if (!req.path.startsWith('/api/web-auth/')) return res.json(data);
+    const register = req.path === '/api/web-auth/register';
+    if (data.error) {
+        const query = new URLSearchParams({ error: data.error });
+        if (!register && typeof req.body.redirect === 'string') query.set('redirect', req.body.redirect);
+        return res.redirect(303, `${register ? '/register' : '/login'}?${query}`);
+    }
+    if (register) return res.redirect(303, '/login?registered=1');
+    let destination = '/profile';
+    try {
+        const url = new URL(typeof req.body.redirect === 'string' ? req.body.redirect : '/profile', publicURL);
+        if (url.origin === new URL(publicURL).origin) destination = url.pathname + url.search;
+    } catch {}
+    return res.redirect(303, destination);
+}
+
+app.post(['/api/register', '/api/web-auth/register'], (req, res) => {
+    const reply = data => authResponse(req, res, data);
     const { login, password, email, nickname } = req.body;
-    if (typeof login !== 'string' || typeof password !== 'string' || !login || !password) return res.json({ error: 'Логин и пароль обязательны' });
-    if (login.length < 3) return res.json({ error: 'Логин должен быть не менее 3 символов' });
-    if (password.length < 4) return res.json({ error: 'Пароль должен быть не менее 4 символов' });
-    if (Object.hasOwn(users, login) || ['__proto__', 'constructor', 'prototype'].includes(login)) return res.json({ error: 'Пользователь с таким логином уже существует' });
+    if (typeof login !== 'string' || typeof password !== 'string' || !login || !password) return reply({ error: 'Логин и пароль обязательны' });
+    if (login.length < 3) return reply({ error: 'Логин должен быть не менее 3 символов' });
+    if (password.length < 4) return reply({ error: 'Пароль должен быть не менее 4 символов' });
+    if (Object.hasOwn(users, login) || ['__proto__', 'constructor', 'prototype'].includes(login)) return reply({ error: 'Пользователь с таким логином уже существует' });
 
     users[login] = {
         password: hashPassword(password),
@@ -266,18 +296,19 @@ app.post('/api/register', (req, res) => {
     };
     saveUsers();
     playerServices.audit(req, login, 'account', 'registered', { method: 'password' });
-    res.json({ success: true, message: 'Регистрация успешна! Теперь войдите.' });
+    reply({ success: true, message: 'Регистрация успешна! Теперь войдите.' });
 });
 
-app.post('/api/auth', (req, res) => {
+app.post(['/api/auth', '/api/web-auth/login'], (req, res) => {
+    const reply = data => authResponse(req, res, data);
     const { login, password } = req.body;
-    if (typeof login !== 'string' || typeof password !== 'string' || !login || !password) return res.json({ error: 'Логин и пароль обязательны' });
+    if (typeof login !== 'string' || typeof password !== 'string' || !login || !password) return reply({ error: 'Логин и пароль обязательны' });
     const user = Object.hasOwn(users, login) ? users[login] : null;
-    if (!user) return res.json({ error: 'Пользователь не найден' });
+    if (!user) return reply({ error: 'Пользователь не найден' });
 
     if (!verifyPassword(password, user.password)) {
         playerServices.audit(req, login, 'auth', 'login', { method: 'password', outcome: 'failed', reason: 'Неверный пароль' });
-        return res.json({ error: 'Неверный пароль' });
+        return reply({ error: 'Неверный пароль' });
     }
 
     // Upgrade legacy password hashes on a successful password login
@@ -298,7 +329,7 @@ app.post('/api/auth', (req, res) => {
         maxAge: 7 * 24 * 60 * 60 // 7 days
     });
 
-    res.json({ success: true, token, username: login, nickname: user.nickname });
+    reply({ success: true, token, username: login, nickname: user.nickname });
 });
 
 app.post('/api/verify', (req, res) => {

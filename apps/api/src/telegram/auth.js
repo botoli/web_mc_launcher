@@ -1,6 +1,7 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
+const { networkConfig } = require('../config/network');
 
 const random = () => crypto.randomBytes(32).toString("base64url");
 const hash = (value) => crypto.createHash("sha256").update(value).digest("hex");
@@ -17,8 +18,11 @@ const same = (a, b) =>
 // belongs to the request's PostgreSQL transaction; the file adapter supports legacy fixtures.
 function installTelegramAuth(
   app,
-  { users, saveUsers, dataDir, storage, secret = "", now = Date.now, audit = () => {}, restriction = u => u.registrationStatus === "banned" || u.frozenUntil > now() },
+  { users, saveUsers, dataDir, storage, secret = "", launcherDownloadURL = networkConfig().publicURL, now = Date.now, audit = () => {}, restriction = u => u.registrationStatus === "banned" || u.frozenUntil > now() },
 ) {
+  const downloadURL = new URL(launcherDownloadURL);
+  if (!['http:', 'https:'].includes(downloadURL.protocol) || downloadURL.username || downloadURL.password)
+    throw new Error('launcherDownloadURL must be an HTTP(S) URL without credentials');
   const stateFile = path.join(dataDir, "telegram-auth-state.json");
   let state = storage ? storage.telegram : fs.existsSync(stateFile)
     ? JSON.parse(fs.readFileSync(stateFile, "utf8"))
@@ -230,7 +234,7 @@ function installTelegramAuth(
     res.json({ offset: state.offset });
   });
   require('./cabinet').installTelegramCabinet(app, {
-    state, users, saveUsers, save, clean, now, audit, restriction, workerRequired,
+    state, users, saveUsers, save, clean, now, audit, restriction, workerRequired, launcherDownloadURL: downloadURL.href,
   });
   return { session };
 }

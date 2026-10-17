@@ -116,12 +116,10 @@ async function main() {
   try {
     await post("setMyCommands", { commands: [
       { command: "menu", description: "🌙 Главное меню" },
-      { command: "login", description: "🎮 Войти в лаунчер по коду" },
+      { command: "login", description: "🔗 Привязать лаунчер / войти по коду" },
       { command: "account", description: "👤 Мой аккаунт" },
-      { command: "register", description: "📝 Регистрация с паролем" },
       { command: "password", description: "🔐 Изменить пароль" },
       { command: "sessions", description: "💻 Сессии лаунчера" },
-      { command: "link", description: "🔗 Привязать аккаунт" },
       { command: "unlink", description: "🔓 Отвязать аккаунт" },
       { command: "help", description: "❔ Помощь" },
       { command: "cancel", description: "✖️ Отменить действие" },

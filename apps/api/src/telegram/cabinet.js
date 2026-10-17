@@ -4,7 +4,7 @@ const nickValid = s => typeof s === 'string' && /^[A-Za-z0-9_]{3,16}$/.test(s);
 const escape = s => String(s ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 const date = ms => ms ? new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Moscow' }).format(ms) + ' МСК' : '—';
 
-function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now, audit, restriction, workerRequired }) {
+function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now, audit, restriction, workerRequired, launcherDownloadURL }) {
     state.telegramProfiles ||= {};
     state.messages ||= {};
     state.deletions ||= {};
@@ -13,6 +13,11 @@ function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now
     const linked = id => Object.entries(users).find(([, u]) => u.telegramId != null && String(u.telegramId) === id);
     const eligible = login => Object.hasOwn(users, login) && !restriction(users[login]) && nickValid(users[login].nickname);
     const active = c => c && c.status === 'pending' && c.expires_at > now();
+    const verified = (c, id) => active(c) && c.code_verified && c.telegramId === id;
+    const onboardingStages = ['nickname', 'link_password', 'register_password', 'register_password_confirm', 'confirm', 'nickname_correction'];
+    function resetChoice(target) {
+        for (const key of ['login', 'nickname', 'passwordHash', 'verifiedPasswordHash']) delete target[key];
+    }
     function log(req, id, action, details = {}) {
         const login = details.login || linked(id)?.[0] || '';
         audit(req, login, details.category || 'account', action, { source: 'telegram', method: 'bot', bot: state.bot,
@@ -96,19 +101,42 @@ function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now
             [button('🔓 Отвязать', 'menu:unlink')],
             [button('❔ Помощь', 'menu:help')],
         ] : [
-            [button('📝 Регистрация', 'menu:register')], [button('🔗 Привязать аккаунт', 'menu:link')],
-            [button('🎮 Войти в лаунчер', 'menu:login')], [button('❔ Помощь', 'menu:help')],
+            [{ text: '📥 Скачать лаунчер', url: launcherDownloadURL }],
+            [button('🔗 Привязать лаунчер', 'menu:login')], [button('❔ Помощь', 'menu:help')],
         ]);
         const send = (id, text, markup = menu(String(id))) => actions.push({ method: 'sendMessage', body: { chat_id: Number(id), text, parse_mode: 'HTML', reply_markup: markup } });
+        const welcome = (id, notice = '') => send(id, (notice ? notice + '\n\n' : '') + '🌙 <b>Equestrian Dream</b>\n\nЧтобы зарегистрироваться или войти, начните с лаунчера.\nСкачайте его с сайта, откройте вход через Telegram и получите код. Затем нажмите «Привязать лаунчер» или отправьте код сюда.');
+        const nicknamePrompt = id => send(id, 'Введите игровой ник: 3–16 латинских букв, цифр или _. Для существующего аккаунта потребуется его пароль, для нового — регистрация.', back);
+        const correctionButton = c => button('Ошибка в нике?', `nick:${c.code}`);
+        const correction = c => keyboard([[correctionButton(c), button('✖️ Отмена', 'menu:cancel')]]);
+        const newAccountNotice = target => `Аккаунт с ником <b>${escape(target.nickname)}</b> не найден.\nЕсли вы уже играли у нас, проверьте написание ника — возможно, в нём опечатка.\n\n`;
+        function passwordReply(id, ctx, target, text) {
+            if (!ctx.challengeId) return send(id, text, back);
+            send(id, (target.login ? `Ник: <b>${escape(target.nickname)}</b>\n\n` : newAccountNotice(target)) + text, correction(target));
+        }
+        function correctionPrompt(id, target) {
+            send(id, `Сейчас указан ник: <b>${escape(target.nickname)}</b>.\n\nВернуться к вводу ника? Пароль потребуется ввести заново.`, keyboard([
+                [button('Продолжить с этим ником', `nick_keep:${target.code}`)],
+                [button('Ввести ник заново', `nick_reset:${target.code}`)],
+                [button('✖️ Отмена', 'menu:cancel')],
+            ]));
+        }
+        function resumeOnboarding(id, ctx, target) {
+            if (ctx.stage === 'confirm') return confirm(id, ctx, target);
+            passwordReply(id, ctx, target, ctx.stage === 'link_password' ? 'Введите пароль существующего аккаунта. Сообщение будет удалено.' : ctx.stage === 'register_password_confirm' ? 'Повторите новый пароль.' : 'Для регистрации нового аккаунта придумайте пароль: 8–128 символов. Сообщение будет удалено.');
+        }
         const context = (id, data) => state.conversations[id] = { ...data, expires_at: now() + 600000 };
         function clear(id) {
             const ctx = state.conversations[id], c = state.challenges[ctx?.challengeId];
-            if (active(c) && c.telegramId === id) { c.status = 'cancelled'; delete c.passwordHash; delete c.verifiedPasswordHash; }
+            if (c?.telegramId === id) {
+                if (active(c)) c.status = 'cancelled';
+                delete c.passwordHash; delete c.verifiedPasswordHash;
+            }
             delete state.conversations[id];
         }
         function account(id) {
             const entry = linked(id);
-            if (!entry) return send(id, '👤 <b>Личный кабинет</b>\n\nСоздайте аккаунт или привяжите существующий.');
+            if (!entry) return welcome(id);
             const [login, u] = entry;
             const statuses = { pending: 'Ожидает проверки', confirmed: 'Подтверждён', banned: 'Заблокирован в лаунчере' };
             const sessions = Object.values(state.sessions).filter(s => s.login === login && s.expires_at > now() && (s.launcherVersion || 0) === (u.launcherVersion || 0)).length;
@@ -119,12 +147,11 @@ function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now
                 (restriction(u) && u.moderationReason ? `Причина: ${escape(u.moderationReason)}\n` : '') +
                 `Регистрация: ${date(u.registeredAt)}\nПоследний вход: ${date(u.lastLogin)}\nTelegram-сессий: ${sessions}\nПароль: ${u.password ? 'Задан' : 'Не задан'}`);
         }
-        function choose(target, nick, id, registrationOnly = false) {
+        function choose(target, nick, id) {
             if (!nickValid(nick)) return 'Ник должен содержать 3–16 латинских букв, цифр или _.';
             const found = Object.entries(users).filter(([, u]) => String(u.nickname).toLowerCase() === nick.toLowerCase());
             if (found.length > 1) return 'Несколько аккаунтов с таким ником. Обратитесь к администратору.';
             const entry = found[0];
-            if (entry && registrationOnly) return 'Этот ник уже зарегистрирован. Используйте «Привязать аккаунт» и пароль существующего аккаунта.';
             if (entry && !eligible(entry[0])) return 'Аккаунт заблокирован или ник некорректен.';
             if (entry?.[1].telegramId && String(entry[1].telegramId) !== id) return 'Этот ник уже привязан к другому Telegram.';
             if (entry && !entry[1].password) return 'У аккаунта нет пароля. Для восстановления привязки обратитесь к администратору.';
@@ -133,15 +160,17 @@ function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now
         }
         function confirm(id, ctx, target) {
             ctx.stage = 'confirm';
-            if (ctx.challengeId) target.step = 'awaiting_confirmation';
-            else ctx.nonce = crypto.randomBytes(16).toString('hex');
-            send(id, `✅ <b>${target.login ? 'Привязка аккаунта' : 'Регистрация'}</b>\n\nНик: <b>${escape(target.nickname)}</b>\n` +
-                (target.login ? 'Пароль проверен.' : 'Пароль задан.') + '\nПодтвердите действие кнопкой.', keyboard([
-                    [button(ctx.challengeId ? '✅ Подтвердить вход' : '✅ Подтвердить', ctx.challengeId ? `yes:${target.code}` : `bind:${ctx.nonce}`)],
-                    [button('✖️ Отмена', ctx.challengeId ? `no:${target.code}` : 'menu:cancel')],
+            target.step = 'awaiting_confirmation';
+            const entry = linked(id);
+            send(id, `✅ <b>${entry ? 'Вход в лаунчер' : target.login ? 'Привязка аккаунта' : 'Регистрация'}</b>\n\n` +
+                (!target.login ? newAccountNotice(target) : `Ник: <b>${escape(target.nickname)}</b>\n\n`) +
+                (entry ? 'Разрешить вход в лаунчер?' : target.login ? 'Пароль проверен. Привязать аккаунт к вашему Telegram и разрешить вход в лаунчер?' : 'Создать аккаунт с этим ником, привязать его к вашему Telegram и разрешить вход в лаунчер?'), keyboard([
+                    [button(entry ? '✅ Подтвердить вход' : target.login ? '✅ Привязать и войти' : '✅ Зарегистрироваться и привязать', `yes:${target.code}`)],
+                    [...(!entry ? [correctionButton(target)] : []), button('✖️ Отмена', 'menu:cancel')],
                 ]));
         }
         function commit(id, target) {
+            if (!verified(target, id) || target.step !== 'awaiting_confirmation') return 'Сначала введите действующий код из лаунчера.';
             const existing = linked(id);
             if (existing) {
                 if (existing[0] !== target.login || !eligible(existing[0])) return 'Аккаунт изменился или доступ заблокирован.';
@@ -171,16 +200,15 @@ function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now
         function command(id, action) {
             const entry = linked(id);
             if (action === 'account') return account(id);
-            if (action === 'help') return send(id, '❔ <b>Лаунчер и личный кабинет</b>\n\n/register — регистрация: ник и пароль, затем подтверждение.\n/link — привязка существующего аккаунта с паролем.\n/login — ввод кода из лаунчера.\n/account — профиль, ник, email, пароль и сессии.\n/cancel — отмена.\n\nПароли не отображаются в ответах. В чате остаётся одно сообщение бота; ваши ответы удаляются после обработки.');
+            if (action === 'help') return send(id, '❔ <b>Лаунчер и личный кабинет</b>\n\nСкачайте лаунчер с сайта и получите код через вход по Telegram.\n/login — привязка лаунчера или вход по коду.\nПосле проверки кода введите ник: существующий аккаунт потребует пароль, новый — регистрацию. Если ошиблись в нике, нажмите «Ошибка в нике?», затем «Ввести ник заново».\n/account — профиль, ник, email, пароль и сессии.\n/cancel — полная отмена.\n\nПароли не отображаются в ответах. В чате остаётся одно сообщение бота; ваши ответы удаляются после обработки.');
             clear(id);
-            if (['menu', 'start', 'cancel'].includes(action)) return entry ? account(id) : send(id, '🌙 <b>Equestrian Dream</b>\n\nСоздайте аккаунт или привяжите существующий, чтобы открыть личный кабинет.');
+            if (['menu', 'start', 'cancel'].includes(action)) return entry ? account(id) : welcome(id, action === 'cancel' ? 'Действие отменено.' : '');
             if (['register', 'link'].includes(action)) {
                 if (entry) return send(id, 'Аккаунт уже привязан. Данные можно изменить в личном кабинете.');
-                context(id, { stage: 'nickname', registrationOnly: action === 'register' });
-                return send(id, action === 'register' ? '📝 <b>Регистрация</b>\n\nВведите свободный игровой ник: 3–16 латинских букв, цифр или _.' : '🔗 <b>Привязка аккаунта</b>\n\nВведите игровой ник. Для существующего аккаунта потребуется пароль.', back);
+                return welcome(id);
             }
             if (action === 'login') { context(id, { stage: 'code' }); return send(id, '🔑 Введите код, показанный в лаунчере. Код действует 5 минут.', back); }
-            if (!entry) return send(id, 'Сначала зарегистрируйте или привяжите аккаунт.');
+            if (!entry) return welcome(id);
             const [login, u] = entry;
             if (['nickname', 'email', 'password'].includes(action)) {
                 const stage = action === 'password' ? (u.password ? 'password_current' : 'password_new') : `edit_${action}`;
@@ -205,12 +233,13 @@ function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now
             if (!found) return send(id, 'Код неверный, истёк или уже используется.', back);
             const [key, c] = found;
             if (ctx?.challengeId !== key) clear(id);
+            resetChoice(c);
             c.telegramId = id; c.code_verified = true; c.chatId = Number(id);
             const entry = linked(id);
             if (entry && !eligible(entry[0])) { c.status = 'rejected'; log(req, id, 'login', { category: 'auth', target: 'launcher', outcome: 'denied', reason: 'Доступ к лаунчеру заблокирован' }); return send(id, 'Аккаунт заблокирован или ник некорректен.'); }
             const next = context(id, { stage: entry ? 'confirm' : 'nickname', challengeId: key });
             if (entry) { c.login = entry[0]; c.nickname = entry[1].nickname; confirm(id, next, c); }
-            else { c.step = 'awaiting_nickname'; send(id, 'Введите игровой ник. Новому аккаунту потребуется пароль.', back); }
+            else { c.step = 'awaiting_nickname'; nicknamePrompt(id); }
         }
         function passwordAttempt(id) {
             let limit = state.passwordAttempts[id];
@@ -231,7 +260,11 @@ function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now
             remember(id, incoming.message_id, incoming.date ? incoming.date * 1000 : now());
             // Recover the current screen from a real inline-button callback after migration.
             if (cb && !state.activeMessages[id] && Number.isSafeInteger(incoming.message_id) && incoming.message_id > 0) activate(id, incoming.message_id);
-            const ctx = state.conversations[id], c = state.challenges[ctx?.challengeId];
+            let ctx = state.conversations[id], c = state.challenges[ctx?.challengeId];
+            // Discard pre-upgrade standalone registration/linking and unverified onboarding.
+            if (onboardingStages.includes(ctx?.stage) && (!ctx.challengeId || !c?.code_verified || c.telegramId !== id)) {
+                clear(id); ctx = undefined; c = undefined;
+            }
             const raw = typeof msg?.text === 'string' ? msg.text : '', value = raw.trim();
             const parsed = /^\/(start|menu|register|login|link|unlink|account|password|sessions|help|cancel)(?:@[A-Za-z0-9_]+)?(?:\s+(.*))?$/.exec(value);
             const isPassword = ctx?.stage?.includes('password');
@@ -247,21 +280,24 @@ function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now
                 if (ctx?.challengeId && !active(c)) { clear(id); send(id, 'Запрос истёк или отменён. Начните новый вход в лаунчере.'); }
                 else if (ctx?.login && ['edit_nickname', 'edit_email', 'password_current', 'password_new', 'password_confirm'].includes(ctx.stage) && linked(id)?.[0] !== ctx.login) { clear(id); send(id, 'Привязка изменилась. Откройте кабинет заново.'); }
                 else if (ctx?.stage === 'nickname') {
-                    const target = c || ctx, error = choose(target, value, id, ctx.registrationOnly);
+                    const target = c, error = choose(target, value, id);
                     if (error) send(id, error, back);
-                    else { ctx.stage = target.login ? 'link_password' : 'register_password'; if (c) c.step = 'awaiting_password'; send(id, target.login ? 'Введите пароль существующего аккаунта. Сообщение будет удалено.' : 'Задайте пароль: 8–128 символов. Сообщение будет удалено.', back); }
+                    else { ctx.stage = target.login ? 'link_password' : 'register_password'; c.step = 'awaiting_password'; resumeOnboarding(id, ctx, target); }
+                } else if (ctx?.stage === 'nickname_correction') {
+                    correctionPrompt(id, c);
                 } else if (['link_password', 'password_current'].includes(ctx?.stage)) {
                     const target = c || ctx, login = target.login;
-                    if (!passwordAttempt(id)) { log(req, id, 'password_check', { login, category: 'auth', outcome: 'denied', reason: 'Лимит попыток' }); send(id, 'Слишком много попыток. Повторите через минуту.', back); }
-                    else if (!Object.hasOwn(users, login) || !verifyPassword(raw, users[login].password)) { log(req, id, 'password_check', { login, category: 'auth', outcome: 'failed', reason: 'Неверный пароль' }); send(id, 'Неверный пароль.', back); }
+                    if (!passwordAttempt(id)) { log(req, id, 'password_check', { login, category: 'auth', outcome: 'denied', reason: 'Лимит попыток' }); passwordReply(id, ctx, target, 'Слишком много попыток. Повторите через минуту.'); }
+                    else if (!Object.hasOwn(users, login) || !verifyPassword(raw, users[login].password)) { log(req, id, 'password_check', { login, category: 'auth', outcome: 'failed', reason: 'Неверный пароль' }); passwordReply(id, ctx, target, 'Неверный пароль.'); }
                     else if (ctx.stage === 'link_password') { target.verifiedPasswordHash = users[login].password; confirm(id, ctx, target); }
                     else { ctx.stage = 'password_new'; ctx.previousHash = users[login].password; send(id, 'Введите новый пароль: 8–128 символов.', back); }
                 } else if (['register_password', 'password_new'].includes(ctx?.stage)) {
-                    if (!passwordValid(raw)) send(id, 'Пароль должен содержать от 8 до 128 символов без перевода строки.', back);
-                    else { const target = c || ctx; target.passwordHash = hashPassword(raw); ctx.stage = ctx.stage === 'register_password' ? 'register_password_confirm' : 'password_confirm'; send(id, 'Повторите новый пароль.', back); }
+                    const target = c || ctx;
+                    if (!passwordValid(raw)) passwordReply(id, ctx, target, 'Пароль должен содержать от 8 до 128 символов без перевода строки.');
+                    else { target.passwordHash = hashPassword(raw); ctx.stage = ctx.stage === 'register_password' ? 'register_password_confirm' : 'password_confirm'; passwordReply(id, ctx, target, 'Повторите новый пароль.'); }
                 } else if (['register_password_confirm', 'password_confirm'].includes(ctx?.stage)) {
                     const target = c || ctx;
-                    if (!verifyPassword(raw, target.passwordHash)) send(id, 'Пароли не совпадают. Повторите пароль или нажмите /cancel.', back);
+                    if (!verifyPassword(raw, target.passwordHash)) passwordReply(id, ctx, target, 'Пароли не совпадают. Повторите пароль или нажмите «Отмена».');
                     else if (ctx.stage === 'register_password_confirm') confirm(id, ctx, target);
                     else if (users[ctx.login].password !== ctx.previousHash) { clear(id); send(id, 'Пароль изменился. Начните заново.'); }
                     else {
@@ -276,17 +312,33 @@ function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now
                     else if (value.length > 254) send(id, 'Значение слишком длинное.', back);
                     else { const field = ctx.stage === 'edit_nickname' ? 'nickname' : 'email'; u[field] = value === '-' ? '' : value; saveUsers(); log(req, id, `${field}_changed`, { category: 'account', target: field === 'nickname' ? value : 'email' }); clear(id); send(id, '✅ Данные сохранены.'); account(id); }
                 } else if (ctx?.stage === 'code' || /^[A-Fa-f0-9\s-]{6,12}$/.test(value)) enterCode(id, value, ctx);
-                else if (ctx?.stage === 'confirm') send(id, 'Подтвердите действие кнопкой или нажмите /cancel.', back);
+                else if (ctx?.stage === 'confirm') confirm(id, ctx, c);
+                else if (!entry) welcome(id);
                 else send(id, 'Используйте кнопки личного кабинета или /menu.');
             } else if (cb) {
-                let answer = 'Готово';
+                let answer = 'Готово', screenSent = false;
                 if (/^menu:(register|login|link|unlink|account|nickname|email|password|sessions|revoke|help|cancel)$/.test(cb.data || '')) command(id, cb.data.slice(5));
                 else {
-                    const match = /^(yes|no):([A-F0-9]{6,8})$/.exec(cb.data || '');
-                    const target = match && Object.values(state.challenges).find(item => item.code === match[2] && item.telegramId === id && item.code_verified && active(item));
+                    const match = /^(yes|no|nick|nick_reset|nick_keep):([A-F0-9]{6,8})$/.exec(cb.data || '');
+                    const target = match && c?.code === match[2] && verified(c, id) ? c : null;
                     if (target && match[1] === 'no') { target.status = 'rejected'; delete target.passwordHash; delete target.verifiedPasswordHash; clear(id); answer = 'Вход отклонён.'; }
-                    else if (target && target.step === 'awaiting_confirmation') { const error = commit(id, target); target.status = error ? 'rejected' : 'confirmed'; delete state.conversations[id]; answer = error || '✅ Вход подтверждён. Вернитесь в лаунчер.'; if (!error) account(id); }
-                    else if (ctx?.stage === 'confirm' && !ctx.challengeId && cb.data === `bind:${ctx.nonce}`) { const error = commit(id, ctx); delete state.conversations[id]; answer = error || '✅ Регистрация или привязка завершена. Логин и данные — в кабинете.'; if (!error) account(id); }
+                    else if (target && match[1] === 'nick' && !entry && onboardingStages.includes(ctx?.stage) && ctx.stage !== 'nickname') {
+                        if (ctx.stage !== 'nickname_correction') ctx.returnStage = ctx.stage;
+                        ctx.stage = 'nickname_correction'; correctionPrompt(id, target); screenSent = true;
+                    }
+                    else if (target && match[1] === 'nick_reset' && !entry && ctx?.stage === 'nickname_correction') {
+                        resetChoice(target); target.step = 'awaiting_nickname'; ctx.stage = 'nickname'; delete ctx.returnStage;
+                        nicknamePrompt(id); screenSent = true;
+                    }
+                    else if (target && match[1] === 'nick_keep' && !entry && ctx?.stage === 'nickname_correction') {
+                        ctx.stage = ctx.returnStage; delete ctx.returnStage;
+                        resumeOnboarding(id, ctx, target); screenSent = true;
+                    }
+                    else if (target && match[1] === 'yes' && ctx?.stage === 'confirm' && target.step === 'awaiting_confirmation') {
+                        const error = commit(id, target); target.status = error ? 'rejected' : 'confirmed';
+                        delete target.passwordHash; delete target.verifiedPasswordHash; delete state.conversations[id];
+                        answer = error || '✅ Готово! Вход подтверждён. Вернитесь в лаунчер.'; if (!error) account(id);
+                    }
                     else if (ctx && ['unlink', 'revoke'].includes(ctx.stage) && cb.data === `${ctx.stage}:${ctx.nonce}` && linked(id)?.[0] === ctx.login && (ctx.stage !== 'unlink' || eligible(ctx.login))) {
                         revoke(ctx.login);
                         if (ctx.stage === 'unlink') {
@@ -295,8 +347,12 @@ function installTelegramCabinet(app, { state, users, saveUsers, save, clean, now
                             answer = '✅ Аккаунт отвязан. Прогресс сохранён, сессии завершены.';
                         } else { log(req, id, 'sessions_revoked', { category: 'auth', target: 'launcher' }); answer = '✅ Все сессии лаунчера завершены.'; }
                         saveUsers(); clear(id);
-                    } else answer = 'Запрос недоступен или уже обработан. Откройте /menu.';
-                    send(id, answer);
+                    } else if (ctx?.challengeId && !active(c)) { clear(id); answer = 'Запрос истёк или отменён. Получите новый код в лаунчере.'; }
+                    else answer = 'Запрос недоступен или уже обработан. Откройте /menu.';
+                    if (!screenSent) {
+                        if (!linked(id) && !state.conversations[id]) welcome(id, answer);
+                        else send(id, answer);
+                    }
                 }
                 actions.unshift({ method: 'answerCallbackQuery', body: { callback_query_id: cb.id, text: answer.length > 180 ? 'Откройте сообщение бота.' : answer } });
             }

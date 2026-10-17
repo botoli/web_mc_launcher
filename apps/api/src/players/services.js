@@ -100,15 +100,18 @@ function createPlayerServices({ users, saveUsers, dataDir, now = Date.now, stora
                 if (!players.has(id)) players.set(id, { id, login: event.login, nickname: event.nickname,
                     telegramId: event.telegramId, discordId: event.discordId,
                     telegramUsername: event.telegramUsername, discordUsername: event.discordUsername });
+                const player = players.get(id);
+                player.identifiers ||= new Set();
+                for (const value of [event.nickname, event.telegramId, event.discordId, event.telegramUsername, event.discordUsername]) if (value) player.identifiers.add(value);
             }
-            res.json({ players: [...players.values()].map(({ id, login, nickname, telegramId, discordId, telegramUsername, discordUsername }) =>
-                ({ id, login, nickname, telegramId, discordId, telegramUsername, discordUsername })),
+            res.json({ players: [...players.values()].map(({ id, login, nickname, telegramId, discordId, telegramUsername, discordUsername, identifiers }) =>
+                ({ id, login, nickname, telegramId, discordId, telegramUsername, discordUsername, search: [...(identifiers || [])].join(' ') })),
                 actions: Object.entries(journalActions).flatMap(([category, actions]) => [...actions].map(value => ({ value, category }))) });
         });
         app.get(['/api/admin/logs', '/api/admin/players/:login/actions'], adminRequired, (req, res) => {
             const login = req.params.login || text(req.query.login, 100);
             if (login && !own(users, login)) return res.status(404).json({ error: 'Игрок не найден' });
-            const category = text(req.query.category, 20), source = text(req.query.source, 40);
+            const category = text(req.query.category, 20);
             const outcome = text(req.query.outcome, 20), query = text(req.query.q, 200).toLowerCase();
             const values = value => (Array.isArray(value) ? value : [value]).flatMap(item => text(item, 5000).split(',')).filter(Boolean);
             const players = values(req.query.players), actions = values(req.query.actions), sources = values(req.query.source);

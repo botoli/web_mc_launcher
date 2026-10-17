@@ -45,6 +45,7 @@ test('standalone worker connects, forwards updates, delivers replies and stops o
             else if (target.endsWith('/setMyCommands')) {
                 assert.ok(body.commands.some(c => c.command === 'unlink'));
                 assert.ok(!body.commands.some(c => c.command === 'history'));
+                assert.ok(!body.commands.some(c => ['register', 'link'].includes(c.command)));
                 result = { ok: true, result: true };
             } else if (target.endsWith('/connect')) {
                 assert.equal(body.username, 'TestWorkerBot');
@@ -155,7 +156,7 @@ async function fixture(t, initialUsers = {}) {
     const events = [];
     const startServer = async () => {
         const app = express(); app.use(express.json());
-        installTelegramAuth(app, { users, dataDir: dir, secret, now: () => time, audit: (req, login, category, action, details) => events.push({ login, category, action, ...details }), saveUsers: () => {
+        installTelegramAuth(app, { users, dataDir: dir, secret, launcherDownloadURL: 'https://launcher.example', now: () => time, audit: (req, login, category, action, details) => events.push({ login, category, action, ...details }), saveUsers: () => {
             saves++; fs.writeFileSync(path.join(dir, 'users.json'), JSON.stringify(users));
         } });
         server = app.listen(0, '127.0.0.1');
@@ -189,9 +190,160 @@ async function fixture(t, initialUsers = {}) {
         start: (id, c) => message(id, '/start ' + new URL(c.url).searchParams.get('start')),
     };
 }
-const buttonData = (reply, prefix) => reply.body.actions.flatMap(a => a.body.reply_markup?.inline_keyboard?.flat() || []).find(b => b.callback_data.startsWith(prefix))?.callback_data;
+const buttons = reply => reply.body.actions.flatMap(a => a.body.reply_markup?.inline_keyboard?.flat() || []);
+const buttonData = (reply, prefix) => buttons(reply).find(b => b.callback_data?.startsWith(prefix))?.callback_data;
 const replyText = reply => reply.body.actions.map(a => a.body.text || '').join('\n');
 async function newPassword(f, id, password = 'secure-password-123') { await f.message(id, password); return f.message(id, password); }
+const savedState = f => JSON.parse(fs.readFileSync(path.join(f.dir, 'telegram-auth-state.json'), 'utf8'));
+
+test('unlinked users only get the download and code flow; old commands and buttons cannot register or link', async t => {
+    const f = await fixture(t, { existing: { nickname: 'Existing', password: hashPassword('existing-password') } });
+    await f.connect();
+    for (const action of ['/start', '/register', '/link', '/account', '/password', 'menu:register', 'menu:link', 'bind:old-nonce']) {
+        const result = action.startsWith('/') ? await f.message(100, action) : await f.callback(100, action);
+        assert.ok(buttons(result).some(b => b.url === 'https://launcher.example/'));
+        assert.equal(buttonData(result, 'menu:register'), undefined);
+        assert.equal(buttonData(result, 'menu:link'), undefined);
+        assert.ok(buttonData(result, 'menu:login'));
+        assert.match(replyText(result), /начните с лаунчера/);
+        await f.message(100, 'Existing'); await newPassword(f, 100, 'existing-password');
+        assert.equal(f.users.existing.telegramId, undefined);
+        assert.equal(f.saves(), 0);
+        assert.equal(savedState(f).conversations['100'], undefined);
+    }
+    await f.callback(100, 'menu:login');
+    assert.match(replyText(await f.message(100, 'Existing')), /Код неверный/);
+    const c = await f.begin(); await f.start(100, c);
+    await f.callback(100, `yes:${c.code}`); await f.message(100, 'Existing');
+    assert.equal((await f.poll(c)).body.step, 'awaiting_code');
+    assert.equal(f.saves(), 0);
+});
+
+test('pre-upgrade standalone conversations and unverified challenge stages cannot complete onboarding after restart', async t => {
+    const f = await fixture(t); await f.connect();
+    const c = await f.begin();
+    const state = savedState(f), passwordHash = hashPassword('legacy-password');
+    const stages = ['nickname', 'link_password', 'register_password', 'register_password_confirm', 'confirm'];
+    for (const [i, stage] of stages.entries()) state.conversations[100 + i] = {
+        stage, nickname: 'LegacyPlayer', passwordHash, nonce: 'legacy-nonce', expires_at: Date.now() + 600000,
+    };
+    state.conversations['200'] = { stage: 'nickname', challengeId: c.id, expires_at: Date.now() + 600000 };
+    fs.writeFileSync(path.join(f.dir, 'telegram-auth-state.json'), JSON.stringify(state));
+    await f.restart();
+    for (const id of [100, 101, 102, 103, 104, 200]) {
+        const result = id === 104 ? await f.callback(id, 'bind:legacy-nonce') : await f.message(id, 'legacy-password');
+        assert.match(replyText(result), /начните с лаунчера/);
+        assert.equal(savedState(f).conversations[id], undefined);
+    }
+    assert.equal(f.saves(), 0);
+    assert.deepEqual(f.users, {});
+});
+
+test('nickname correction clears password data at every registration step and keeps the original code expiry', async t => {
+    for (const stage of ['register_password', 'register_password_confirm', 'confirm']) await t.test(stage, async t => {
+        const original = { nickname: 'Existing', password: hashPassword('existing-password'), email: 'keep@example.test' };
+        const f = await fixture(t, { existing: original }); await f.connect();
+        const c = await f.begin(); await f.message(100, c.code);
+        const prompt = await f.message(100, 'Exsting');
+        assert.match(replyText(prompt), /не найден/); assert.match(replyText(prompt), /опечатка/);
+        assert.ok(buttonData(prompt, 'nick:')); assert.ok(buttonData(prompt, 'menu:cancel'));
+        const invalid = await f.message(100, 'short');
+        assert.match(replyText(invalid), /опечатка/); assert.ok(buttonData(invalid, 'nick:'));
+        let screen = prompt;
+        if (stage !== 'register_password') screen = await f.message(100, 'discarded-password');
+        if (stage === 'confirm') screen = await f.message(100, 'discarded-password');
+        assert.match(replyText(screen), /опечатка/);
+        assert.ok(buttonData(screen, 'menu:cancel'));
+        await f.restart(); f.advance(10000);
+        const beforeCorrection = savedState(f).challenges[c.id];
+        const choice = await f.callback(100, buttonData(screen, 'nick:'));
+        assert.match(replyText(choice), /Пароль потребуется ввести заново/);
+        assert.deepEqual(savedState(f).challenges[c.id], beforeCorrection, 'opening correction must preserve entered credentials');
+        await f.callback(100, `yes:${c.code}`);
+        assert.equal(f.saves(), 0, 'confirmation must wait for leaving the correction dialog');
+        const resumed = await f.callback(100, buttonData(choice, 'nick_keep:'));
+        assert.equal(savedState(f).conversations['100'].stage, stage);
+        assert.deepEqual(savedState(f).challenges[c.id], beforeCorrection);
+        assert.ok(buttonData(resumed, 'nick:'));
+        const secondChoice = await f.callback(100, buttonData(resumed, 'nick:'));
+        await f.restart();
+        const reset = await f.callback(100, buttonData(secondChoice, 'nick_reset:'));
+        assert.match(replyText(reset), /Введите игровой ник/);
+        assert.equal(buttonData(reset, 'nick:'), undefined, 'nickname entry itself must not offer nickname correction');
+        const pending = savedState(f).challenges[c.id];
+        assert.equal(pending.step, 'awaiting_nickname'); assert.equal(pending.expires_at, c.expires_at);
+        for (const field of ['nickname', 'login', 'passwordHash', 'verifiedPasswordHash']) assert.equal(pending[field], undefined);
+        await f.callback(100, `yes:${c.code}`);
+        assert.equal(f.saves(), 0, 'an earlier confirmation cannot bypass re-entering the nickname and password');
+        await f.message(100, 'existing');
+        const wrongPassword = await f.message(100, 'discarded-password');
+        assert.match(replyText(wrongPassword), /Неверный пароль/);
+        assert.ok(buttonData(wrongPassword, 'nick:'));
+        const confirmation = await f.message(100, 'existing-password');
+        assert.ok(buttons(confirmation).some(b => b.text === '✅ Привязать и войти'));
+        const existingChoice = await f.callback(100, buttonData(confirmation, 'nick:'));
+        const existingResumed = await f.callback(100, buttonData(existingChoice, 'nick_keep:'));
+        await f.callback(100, buttonData(existingResumed, 'yes:'));
+        assert.equal((await f.exchange(c)).body.user.login, 'existing');
+        const { lastLogin, ...bound } = f.users.existing;
+        assert.deepEqual(bound, { ...original, telegramId: '100', telegramUsername: '' });
+        assert.ok(lastLogin);
+        assert.equal(Object.keys(f.users).length, 1);
+    });
+});
+
+test('registration password mismatch retains the nickname warning and correction controls', async t => {
+    const f = await fixture(t); await f.connect(); const c = await f.begin();
+    await f.message(100, c.code); await f.message(100, 'NewPlayer');
+    await f.message(100, 'first-password');
+    const mismatch = await f.message(100, 'other-password');
+    assert.match(replyText(mismatch), /Пароли не совпадают/);
+    assert.match(replyText(mismatch), /опечатка/);
+    assert.ok(buttonData(mismatch, 'nick:')); assert.ok(buttonData(mismatch, 'menu:cancel'));
+    const choice = await f.callback(100, buttonData(mismatch, 'nick:'));
+    await f.callback(100, buttonData(choice, 'nick_reset:')); await f.message(100, 'Corrected');
+    const confirmation = await newPassword(f, 100, 'replacement-password');
+    assert.ok(buttons(confirmation).some(b => b.text === '✅ Зарегистрироваться и привязать'));
+    await f.callback(100, buttonData(confirmation, 'yes:'));
+    assert.equal(f.users.tg_100.nickname, 'Corrected');
+    assert.ok(verifyPassword('replacement-password', f.users.tg_100.password));
+    assert.equal(verifyPassword('first-password', f.users.tg_100.password), false);
+});
+
+test('cancelling at every onboarding step creates no account and closes the launcher request', async t => {
+    for (const stage of ['nickname', 'register_password', 'register_password_confirm', 'confirm', 'nickname_correction']) await t.test(stage, async t => {
+        const f = await fixture(t); await f.connect(); const c = await f.begin();
+        let screen = await f.message(100, c.code);
+        if (stage !== 'nickname') screen = await f.message(100, 'NewPlayer');
+        if (['register_password_confirm', 'confirm'].includes(stage)) screen = await f.message(100, 'cancelled-password');
+        if (stage === 'confirm') screen = await f.message(100, 'cancelled-password');
+        if (stage === 'nickname_correction') screen = await f.callback(100, buttonData(screen, 'nick:'));
+        const cancelled = await f.callback(100, buttonData(screen, 'menu:cancel'));
+        assert.match(replyText(cancelled), /отменено/);
+        assert.ok(buttons(cancelled).some(b => b.url));
+        assert.equal((await f.poll(c)).body.status, 'cancelled');
+        assert.equal(savedState(f).challenges[c.id].passwordHash, undefined);
+        await f.callback(100, `yes:${c.code}`); await f.callback(100, `nick:${c.code}`);
+        assert.equal((await f.exchange(c)).status, 409);
+        assert.equal(f.saves(), 0); assert.deepEqual(f.users, {});
+    });
+});
+
+test('expired codes cannot register via text, nickname correction or confirmation buttons', async t => {
+    for (const action of ['password', 'nick', 'yes', 'nick_reset', 'nick_keep']) await t.test(action, async t => {
+        const f = await fixture(t); await f.connect(); const c = await f.begin();
+        await f.message(100, c.code); await f.message(100, 'ExpiredPlayer');
+        if (action !== 'password') await newPassword(f, 100);
+        if (action.startsWith('nick_')) await f.callback(100, `nick:${c.code}`);
+        f.advance(300001);
+        const result = action === 'password' ? await f.message(100, 'expired-password') : await f.callback(100, `${action}:${c.code}`);
+        assert.match(replyText(result), /истёк/);
+        assert.equal((await f.poll(c)).body.status, 'expired');
+        assert.equal((await f.exchange(c)).status, 409);
+        assert.equal(savedState(f).challenges[c.id].passwordHash, undefined);
+        assert.equal(f.saves(), 0); assert.deepEqual(f.users, {});
+    });
+});
 
 test('manual code is required before nickname, explicit confirmation and persistent sessions', async t => {
     const f = await fixture(t);
@@ -281,15 +433,16 @@ test('nickname conflicts, bans, duplicates and concurrent claims are rechecked a
     assert.equal(f.users.banned.telegramId, undefined);
 });
 
-test('menu, standalone linking and confirmed unlink revoke sessions and pending exchanges permanently', async t => {
+test('menu, code-based linking and confirmed unlink revoke sessions and pending exchanges permanently', async t => {
     const f = await fixture(t); await f.connect();
     const welcome = await f.message(100, '/start');
-    assert.ok(buttonData(welcome, 'menu:link'));
+    assert.ok(buttonData(welcome, 'menu:login'));
     assert.equal(welcome.body.actions[0].body.parse_mode, 'HTML');
-    await f.callback(100, 'menu:link');
+    await f.callback(100, 'menu:login');
+    const initial = await f.begin(); await f.message(100, initial.code);
     await f.message(100, 'NewPlayer');
     const preview = await newPassword(f, 100);
-    const bind = buttonData(preview, 'bind:');
+    const bind = buttonData(preview, 'yes:');
     await f.callback(101, bind); assert.equal(f.saves(), 0);
     await f.callback(100, bind); assert.equal(f.users.tg_100.telegramId, '100');
     await f.callback(100, bind); assert.equal(f.saves(), 1);
@@ -312,9 +465,11 @@ test('menu, standalone linking and confirmed unlink revoke sessions and pending 
     assert.equal((await f.poll(c)).body.status, 'cancelled');
     assert.equal((await f.poll(d)).body.status, 'cancelled');
     assert.equal((await f.exchange(c)).status, 409);
+    f.advance(60001); // The initial binding and four login codes used this minute's allowance.
     await f.message(100, '/link');
+    const relink = await f.begin(); await f.message(100, relink.code);
     await f.message(100, 'NewPlayer');
-    const rebind = buttonData(await f.message(100, 'secure-password-123'), 'bind:');
+    const rebind = buttonData(await f.message(100, 'secure-password-123'), 'yes:');
     await f.callback(100, rebind);
     assert.equal(f.users.tg_100.telegramId, '100');
     await f.callback(100, unlink); // stale unlink button cannot detach the new binding
@@ -370,8 +525,9 @@ test('switching nick after unlink preserves the previous account and never overw
     const f = await fixture(t, { tg_100: { nickname: 'Previous', password: null, registrationStatus: 'pending' } });
     await f.connect();
     await f.message(100, '/link');
+    const c = await f.begin(); await f.message(100, c.code);
     await f.message(100, 'Another');
-    const bind = buttonData(await newPassword(f, 100), 'bind:');
+    const bind = buttonData(await newPassword(f, 100), 'yes:');
     await f.callback(100, bind);
     assert.deepEqual(f.users.tg_100, { nickname: 'Previous', password: null, registrationStatus: 'pending' });
     const linked = Object.entries(f.users).find(([, user]) => user.telegramId === '100');
@@ -413,6 +569,7 @@ test('established binding identifies a returning player despite legacy duplicate
 test('password registration tracks usernames, removes the whole known dialogue and retries cleanup after restart', async t => {
     const f = await fixture(t); await f.connect();
     await f.message(100, '/register', 'FirstName');
+    const c = await f.begin(); await f.message(100, c.code, 'FirstName');
     await f.worker('delivery', { kind: 'sent', chat_id: 100, message_id: 500 });
     await f.worker('delivery', { kind: 'sent', chat_id: 100, message_id: 501 });
     await f.message(100, 'Registered', 'FirstName');
@@ -425,7 +582,7 @@ test('password registration tracks usernames, removes the whole known dialogue a
     await f.message(100, 'does-not-match', 'FirstName');
     const confirmation = await f.message(100, password, 'FirstName');
     assert.equal(f.users.tg_100, undefined, 'registration still requires explicit confirmation');
-    const result = await f.callback(100, buttonData(confirmation, 'bind:'), 'FirstName');
+    const result = await f.callback(100, buttonData(confirmation, 'yes:'), 'FirstName');
     assert.ok(verifyPassword(password, f.users.tg_100.password));
     assert.ok(!replyText(result).includes(password));
     const tasks = (await f.worker('pending-actions', {})).body.actions;
@@ -477,8 +634,8 @@ test('cabinet edits profile, changes password and revokes all launcher sessions 
 
 test('existing account binding requires the password, rate-limits guesses and rechecks concurrent password changes', async t => {
     const f = await fixture(t, { protected: { nickname: 'Protected', password: hashPassword('correct-password'), registrationStatus: 'confirmed' } }); await f.connect();
-    await f.message(100, '/link'); await f.message(100, 'Protected');
-    assert.equal(buttonData(await f.message(100, 'wrong'), 'bind:'), undefined);
+    await f.message(100, '/link'); const c = await f.begin(); await f.message(100, c.code); await f.message(100, 'Protected');
+    assert.equal(buttonData(await f.message(100, 'wrong'), 'yes:'), undefined);
     for (let i = 0; i < 4; i++) await f.message(100, 'wrong');
     await f.restart();
     assert.match(replyText(await f.message(100, 'correct-password')), /Слишком много попыток/);
@@ -486,7 +643,7 @@ test('existing account binding requires the password, rate-limits guesses and re
     f.advance(60001);
     const confirmation = await f.message(100, 'correct-password');
     f.users.protected.password = hashPassword('different-password');
-    await f.callback(100, buttonData(confirmation, 'bind:'));
+    await f.callback(100, buttonData(confirmation, 'yes:'));
     assert.equal(f.users.protected.telegramId, undefined);
 });
 

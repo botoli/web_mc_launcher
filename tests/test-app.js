@@ -41,7 +41,7 @@ async function startTestApp() {
     const bootstrap = path.join(fixture, 'bootstrap.cjs');
     await fs.writeFile(bootstrap, `
         const { startLauncher } = require(${JSON.stringify(path.join(root, 'scripts/run.js'))});
-        const launcher = startLauncher({ root: __dirname, frontendDirectory: ${JSON.stringify(path.join(root, 'apps/web'))} });
+        const launcher = startLauncher({ root: __dirname, frontendDirectory: ${JSON.stringify(process.env.TEST_FRONTEND_DIR || path.join(root, 'apps/web'))} });
         process.on('message', message => { if (message === 'stop') { launcher.stop(); process.disconnect(); } });
     `);
     const children = [spawn(process.execPath, [bootstrap], { cwd: fixture, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })];

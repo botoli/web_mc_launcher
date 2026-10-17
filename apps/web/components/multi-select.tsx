@@ -15,7 +15,7 @@ export function MultiSelect({ label, placeholder, searchPlaceholder, options, va
   const trigger = useRef<HTMLButtonElement>(null), popup = useRef<HTMLDivElement>(null), searchInput = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false), [search, setSearch] = useState('');
   const [position, setPosition] = useState({ top: 0, left: 0, maxHeight: 360 });
-  const available = useMemo(() => [...options, ...value.filter(key => !options.some(option => option.value === key)).map(key => ({ value: key, label: key }))], [options, value]);
+  const available = useMemo<SelectOption[]>(() => [...options, ...value.filter(key => !options.some(option => option.value === key)).map(key => ({ value: key, label: key }))], [options, value]);
   const filtered = available.filter(option => `${option.label} ${option.description || ''} ${option.search || ''}`.toLocaleLowerCase('ru-RU').includes(search.trim().toLocaleLowerCase('ru-RU')));
   const summary = value.length === 1 ? available.find(option => option.value === value[0])?.label : value.length ? `Выбрано: ${value.length}` : placeholder;
   function close(restore = false) { setOpen(false); if (restore) trigger.current?.focus(); }
@@ -67,7 +67,7 @@ export function MultiSelect({ label, placeholder, searchPlaceholder, options, va
         }
         if (event.key === 'Enter' && event.target === searchInput.current) { event.preventDefault(); if (filtered[0]) toggle(filtered[0].value); }
       }}>
-      <div className="multi-select-search"><Search size={15} aria-hidden="true" /><input ref={searchInput} aria-label={searchPlaceholder || `Поиск: ${label}`} placeholder={searchPlaceholder || 'Поиск…'} value={search} onChange={event => setSearch(event.target.value)} /></div>
+      <div className="search-field multi-select-search"><Search size={15} aria-hidden="true" /><input ref={searchInput} aria-label={searchPlaceholder || `Поиск: ${label}`} placeholder={searchPlaceholder || 'Поиск…'} value={search} onChange={event => setSearch(event.target.value)} /></div>
       <div className="multi-select-summary"><span aria-live="polite">Выбрано: {value.length}</span><button type="button" disabled={!value.length} onClick={() => { onChange([]); searchInput.current?.focus(); }}>Очистить</button></div>
       {error ? <div className="multi-select-state" role="alert">{error}<button type="button" className="button secondary" onClick={onRetry}>Повторить</button></div>
         : loading ? <p className="multi-select-state" role="status">Загрузка…</p>

@@ -75,6 +75,72 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
   };
 
   await t.test(
+    "auth forms render on the server and work when browser scripts are unavailable",
+    async (nativeTest) => {
+      const app = await startTestApp();
+      nativeTest.after(() => app.stop());
+      for (const javaScriptEnabled of [false, true]) {
+        const nativeContext = await browser.newContext({ javaScriptEnabled });
+        try {
+          // Both disabled JS and failed chunk downloads must leave a usable form.
+          if (javaScriptEnabled) await nativeContext.route('**/_next/**/*.js', route => route.abort());
+          const nativePage = await nativeContext.newPage();
+          const login = javaScriptEnabled ? 'blocked_scripts' : 'native_player';
+          const password = 'native-form-test-password';
+          const response = await nativePage.goto(`${app.baseURL}/register`);
+          assert.match(await response.text(), /<form\b/);
+          await expect(nativePage.locator('form')).toHaveAttribute('method', 'post');
+          await expect(nativePage.locator('form')).toHaveAttribute('action', '/api/web-auth/register');
+          await nativePage.getByLabel('Логин', { exact: true }).fill(login);
+          await nativePage.getByLabel('Пароль', { exact: true }).fill(password);
+          await nativePage.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
+          await expect(nativePage).toHaveURL(`${app.baseURL}/login?registered=1`);
+          await expect(nativePage.locator('.notice.success')).toContainText('Аккаунт создан');
+
+          const loginResponse = await nativePage.goto(`${app.baseURL}/login?redirect=%2Fprofile%3Fnative%3D1`);
+          assert.match(await loginResponse.text(), /<form\b/);
+          await expect(nativePage.locator('form')).toHaveAttribute('method', 'post');
+          await expect(nativePage.locator('form')).toHaveAttribute('action', '/api/web-auth/login');
+          await nativePage.getByLabel('Логин', { exact: true }).fill(login);
+          await nativePage.getByLabel('Пароль', { exact: true }).fill('wrong-password');
+          await nativePage.getByRole('button', { name: 'Войти', exact: true }).click();
+          await expect(nativePage.locator('.notice.error')).toContainText('Неверный пароль');
+          assert.equal(new URL(nativePage.url()).searchParams.get('redirect'), '/profile?native=1');
+          assert.ok(!nativePage.url().includes('wrong-password'));
+          await nativePage.getByLabel('Логин', { exact: true }).fill(login);
+          await nativePage.getByLabel('Пароль', { exact: true }).fill(password);
+          await nativePage.getByRole('button', { name: 'Войти', exact: true }).click();
+          await expect(nativePage).toHaveURL(`${app.baseURL}/profile?native=1`);
+          await expect(nativePage.getByRole('heading', { name: 'Твой профиль', exact: true })).toBeVisible();
+          assert.ok((await nativeContext.cookies()).some(cookie => cookie.name === 'mc_launcher_token' && cookie.httpOnly));
+        } finally { await nativeContext.close(); }
+      }
+
+      const nativePost = (redirect, origin) => fetch(`${app.baseURL}/api/web-auth/login`, {
+        method: 'POST', redirect: 'manual',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...(origin ? { Origin: origin } : {}) },
+        body: new URLSearchParams({ login: 'native_player', password: 'native-form-test-password', redirect }),
+      });
+      for (const redirect of ['https://example.invalid', '//example.invalid', '/\\example.invalid', 'http://[invalid']) {
+        const response = await nativePost(redirect);
+        assert.equal(response.status, 303);
+        assert.equal(response.headers.get('location'), '/profile');
+        assert.equal(response.headers.get('cache-control'), 'no-store');
+        assert.ok(!(await response.text()).includes('native-form-test-password'));
+      }
+      const crossSite = await nativePost('/profile', 'https://example.invalid');
+      assert.equal(crossSite.status, 403);
+      assert.equal(crossSite.headers.get('set-cookie'), null);
+      const legacy = await fetch(`${app.baseURL}/api/auth`, {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ login: 'native_player', password: 'native-form-test-password' }),
+      });
+      assert.equal(legacy.status, 200);
+      assert.equal((await legacy.json()).success, true);
+    },
+  );
+
+  await t.test(
     "registration, login errors and cookie authentication",
     async () => {
       await page.goto(`${app.baseURL}/register`);
@@ -435,28 +501,101 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await page.getByRole('tab', { name: 'Все действия', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Журнал действий' })).toContainText('Заморозка');
     await page.getByRole('tab', { name: 'Лог авторизаций', exact: true }).click();
-    await expect(page.getByText('События не найдены', { exact: true })).toBeVisible();
+    await expect(page.getByText('Событий пока нет', { exact: true })).toBeVisible();
     await page.getByRole('tab', { name: 'Подключения на сервер', exact: true }).click();
-    await expect(page.getByText('События не найдены', { exact: true })).toBeVisible();
+    await expect(page.getByText('Событий пока нет', { exact: true })).toBeVisible();
     await screenshot('player-actions-desktop.png');
     await page.getByRole('link', { name: 'Логи', exact: true }).click();
-    await page.getByLabel('Тип событий', { exact: true }).selectOption('moderation');
-    await page.getByLabel('Поиск в логах', { exact: true }).fill('alex');
+    await page.getByRole('button', { name: 'Действие', exact: true }).click();
+    await page.getByLabel('Поиск действия...', { exact: true }).fill('Снятие заморозки');
+    await page.getByRole('option', { name: 'Снятие заморозки', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Игроки', exact: true }).click();
+    await page.getByLabel('Поиск по игроку или ID...', { exact: true }).fill('alex');
+    await page.getByRole('option', { name: 'alex alex', exact: true }).click();
+    await page.keyboard.press('Escape');
     await expect(page.getByRole('region', { name: 'Журнал действий' })).toContainText('Снятие заморозки');
     await screenshot('logs-desktop.png');
     await context.request.post(`${app.baseURL}/api/internal/discord-events`, {
       headers: { 'X-Events-Secret': 'integration-events-secret-32-characters' },
       data: { login: 'alex', discordId: '123456789', username: 'alex.discord', bot: 'TestDiscordBot', action: 'discord_linked', ip: '' },
     });
-    await page.getByLabel('Тип событий', { exact: true }).selectOption('');
-    await page.getByLabel('Поиск в логах', { exact: true }).fill('alex.discord');
-    await expect(page.getByRole('columnheader', { name: 'Telegram / Discord', exact: true })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: 'Откуда', exact: true })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: 'Куда / объект', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await page.getByRole('button', { name: 'Обновить логи', exact: true }).click();
+    await page.getByRole('button', { name: 'Игроки', exact: true }).click();
+    await page.getByLabel('Поиск по игроку или ID...', { exact: true }).fill('alex.discord');
+    await expect(page.getByRole('option', { name: 'alex alex', exact: true })).toBeVisible();
+    await page.getByRole('option', { name: 'alex alex', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('columnheader', { name: 'Контакт', exact: true })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Источник', exact: true })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Объект', exact: true })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Журнал действий' })).toContainText('alex.discord');
     await page.getByRole('button', { name: /^Подробности события/ }).first().click();
     await expect(page.locator('.event-details-row')).toContainText('123456789');
     await screenshot('logs-identity-desktop.png');
+  });
+
+  await t.test('compact log filters, history, sorting, pagination and request states', async () => {
+    for (let index = 0; index < 35; index++) await context.request.post(`${app.baseURL}/api/internal/discord-events`, {
+      headers: { 'X-Events-Secret': 'integration-events-secret-32-characters' },
+      data: { login: 'alex', discordId: '123456789', username: 'alex.discord', bot: 'TestDiscordBot', action: 'login', ip: '' },
+    });
+    await page.goto(`${app.baseURL}/logs`);
+    const region = page.getByRole('region', { name: 'Журнал действий' });
+    await expect(region).toHaveAttribute('aria-busy', 'false');
+    const heights = await page.locator('.event-row').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
+    assert.ok(heights.length > 0 && heights.every(height => height >= 48 && height <= 56), JSON.stringify(heights));
+    await page.getByRole('button', { name: 'Игроки', exact: true }).focus();
+    await page.keyboard.press('ArrowDown');
+    await page.getByLabel('Поиск по игроку или ID...', { exact: true }).fill('alex');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('option', { name: 'alex alex', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await page.getByLabel('Поиск по игроку или ID...', { exact: true }).fill('steve');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: 'Игроки', exact: true })).toContainText('Выбрано: 2');
+    await expect(page).toHaveURL(/players=alex&players=steve/);
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Игроки', exact: true })).toContainText('Выбрано: 2');
+    await page.getByRole('button', { name: 'Игроки', exact: true }).click();
+    await page.getByRole('option', { name: 'steve steve', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: 'Игроки', exact: true })).toContainText('alex');
+    await page.goBack();
+    await expect(page.getByRole('button', { name: 'Игроки', exact: true })).toContainText('Выбрано: 2');
+    await page.goForward();
+    await expect(page.getByRole('button', { name: 'Игроки', exact: true })).toContainText('alex');
+    await page.getByRole('button', { name: 'Дата и время', exact: true }).click();
+    await expect(page.getByRole('columnheader', { name: 'Дата и время' })).toHaveAttribute('aria-sort', 'ascending');
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await page.getByLabel('Событий на странице', { exact: true }).selectOption('50');
+    await expect(page.locator('.event-row')).toHaveCount(50);
+    await page.getByRole('button', { name: 'Далее', exact: true }).click();
+    await expect(page.locator('.log-page-navigation')).toContainText('Страница 2');
+    await page.getByRole('button', { name: 'Быстрый период', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Вчера', exact: true }).click();
+    await expect(page.getByText('По выбранным фильтрам событий не найдено', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Сбросить фильтры', exact: true }).click();
+    await expect(page.locator('.event-row')).toHaveCount(25);
+    // The page owns vertical scrolling; its translated table header stays visible.
+    await page.locator('.page-content').evaluate(node => { node.scrollTop = 380; });
+    await expect.poll(() => page.locator('.logs-table thead').evaluate(node => Math.abs(node.getBoundingClientRect().top - node.closest('.page-content').getBoundingClientRect().top))).toBeLessThanOrEqual(2);
+    await page.locator('.page-content').evaluate(node => { node.scrollTop = 0; });
+    await screenshot('logs-compact-desktop.png');
+    await page.route('**/api/admin/logs?*', route => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Тестовая ошибка' }) }));
+    await page.getByRole('button', { name: 'Обновить логи', exact: true }).click();
+    await expect(page.getByText('Не удалось загрузить логи', { exact: true })).toBeVisible();
+    await page.unroute('**/api/admin/logs?*');
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/admin/logs?*', async route => { await held; await route.continue(); });
+    await page.getByRole('button', { name: 'Повторить', exact: true }).click();
+    await expect(page.locator('.event-skeleton').first()).toBeVisible();
+    release();
+    await expect(page.locator('.event-row')).toHaveCount(25);
+    await page.unroute('**/api/admin/logs?*');
   });
 
   await t.test("only botoli1 can manage roles in the players table", async () => {

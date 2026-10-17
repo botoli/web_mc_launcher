@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
 import { AuthForm } from '@/components/auth-form';
 export const metadata: Metadata = { title: 'Регистрация' };
-export default function RegisterPage() {
-  return <Suspense fallback={<p>Загрузка…</p>}><AuthForm register /></Suspense>;
+export default async function RegisterPage({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  return <AuthForm register initialError={typeof params.error === 'string' ? params.error.slice(0, 200) : ''} />;
 }
