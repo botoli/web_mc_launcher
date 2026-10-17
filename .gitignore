@@ -23,4 +23,5 @@ data/player-events.jsonl
 data/backups/
 data/postgres/
 *.dump
+*.tar.gz
 !.env.example

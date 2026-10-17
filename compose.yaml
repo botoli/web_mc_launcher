@@ -1,0 +1,119 @@
+name: mc-launcher
+
+services:
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Run scripts/docker/init.sh first}
+      APP_DB_NAME: ${PGDATABASE:-mc_launcher}
+      APP_DB_USER: ${PGUSER:-mc_launcher}
+      APP_DB_PASSWORD: ${PGPASSWORD:?Set PGPASSWORD in .env.docker}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/docker/init-db.sh:/docker-entrypoint-initdb.d/10-app.sh:ro
+    networks: [database]
+    healthcheck:
+      test: [CMD-SHELL, 'PGPASSWORD="$${APP_DB_PASSWORD}" psql -h 127.0.0.1 -U "$${APP_DB_USER}" -d "$${APP_DB_NAME}" -tAc "SELECT 1" > /dev/null']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    image: ${LAUNCHER_IMAGE:-mc-launcher:local}
+    pull_policy: never
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      HOST: 0.0.0.0
+      PORT: '3000'
+      FRONTEND_PORT: '3001'
+      PUBLIC_URL: ${PUBLIC_URL:?Run scripts/docker/init.sh first}
+      HTTPS_ENABLED: 'false'
+      TRUST_PROXY: loopback,uniquelocal
+      PGHOST: db
+      PGPORT: '5432'
+      PGDATABASE: ${PGDATABASE:-mc_launcher}
+      PGUSER: ${PGUSER:-mc_launcher}
+      PGPASSWORD: ${PGPASSWORD:?Set PGPASSWORD in .env.docker}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.docker}
+      TELEGRAM_BOT_SECRET: ${TELEGRAM_BOT_SECRET:?Set TELEGRAM_BOT_SECRET in .env.docker}
+      PLAYER_EVENTS_SECRET: ${PLAYER_EVENTS_SECRET:?Set PLAYER_EVENTS_SECRET in .env.docker}
+    volumes:
+      - app_data:/app/data
+      - next_cache:/app/apps/web/.next/cache
+    networks: [database, web]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "Promise.all(['/api/status','/login'].map(p=>fetch('http://127.0.0.1:3000'+p).then(r=>{if(!r.ok)throw Error(r.status)}))).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      start_period: 30s
+      retries: 12
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - '${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-8080}:80'
+      - '${HTTP_BIND:-0.0.0.0}:${TLS_PORT:-443}:443'
+    volumes:
+      - ./deploy/docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [web]
+    depends_on:
+      app:
+        condition: service_healthy
+
+  bot:
+    image: ${LAUNCHER_IMAGE:-mc-launcher:local}
+    profiles: [bot]
+    restart: unless-stopped
+    init: true
+    entrypoint: [node, /app/apps/bot/bot.js]
+    # The worker accepts plain HTTP only over loopback. Sharing the app's
+    # network namespace preserves that rule without exposing the API publicly.
+    network_mode: service:app
+    environment:
+      AUTH_API_URL: http://127.0.0.1:3000
+      telegrambotapi: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_SECRET: ${TELEGRAM_BOT_SECRET:?Set TELEGRAM_BOT_SECRET}
+      TELEGRAM_DELIVERY_STATE_FILE: /var/lib/mc-launcher-bot/delivery-receipts.json
+    volumes:
+      - bot_data:/var/lib/mc-launcher-bot
+    depends_on:
+      app:
+        condition: service_healthy
+
+  tools:
+    image: postgres:16-bookworm
+    profiles: [tools]
+    entrypoint: [/bin/sh]
+    environment:
+      PGHOST: db
+      PGDATABASE: ${PGDATABASE:-mc_launcher}
+      PGUSER: ${PGUSER:-mc_launcher}
+      PGPASSWORD: ${PGPASSWORD:?Set PGPASSWORD}
+    volumes:
+      - app_data:/transfer/data
+      - bot_data:/transfer/bot
+    networks: [database]
+
+volumes:
+  postgres_data:
+  app_data:
+  next_cache:
+  bot_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  database:
+    internal: true
+  web:

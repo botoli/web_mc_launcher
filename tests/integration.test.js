@@ -176,9 +176,9 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
   await t.test(
     "mod upload, search, download and confirmed deletion",
     async () => {
-      await page.getByRole("link", { name: "Моди и конфиги", exact: true }).click();
+      await page.getByRole("link", { name: "Моды и конфиги", exact: true }).click();
       await expect(
-        page.getByRole("heading", { name: "Моди и конфиги" }),
+        page.getByRole("heading", { name: "Моды и конфиги" }),
       ).toBeVisible();
       await page
         .locator("#mod-file")
@@ -421,7 +421,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
       await page.setViewportSize({ width: 390, height: 844 });
       for (const [route, title, screenshotName] of [
         ["/", "Твоя следующая сборка", "dashboard-mobile.png"],
-        ["/mods", "Моди и конфиги", "mods-mobile.png"],
+        ["/mods", "Моды и конфиги", "mods-mobile.png"],
         ["/players", "Люди, которые создают мир", "players-mobile.png"],
         ["/profile", "Твой профиль", "profile-mobile.png"],
         ["/logs", "Логи игроков", "logs-mobile.png"],
@@ -449,9 +449,9 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
         await screenshot(screenshotName);
       }
       await page.getByRole("button", { name: "Открыть меню" }).click();
-      await page.getByRole("link", { name: "Моди и конфиги", exact: true }).click();
+      await page.getByRole("link", { name: "Моды и конфиги", exact: true }).click();
       await expect(
-        page.getByRole("heading", { name: "Моди и конфиги" }),
+        page.getByRole("heading", { name: "Моды и конфиги" }),
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Открыть меню" }),

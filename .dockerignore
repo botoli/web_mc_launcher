@@ -1,0 +1,16 @@
+**
+!package.json
+!package-lock.json
+!apps/
+!apps/**
+!scripts/
+!scripts/run.js
+!scripts/docker/
+!scripts/docker/**
+# Never include credentials, real data, old builds or local dependencies.
+**/.env*
+**/.delivery-receipts.json*
+**/node_modules
+**/.next
+**/*.tsbuildinfo
+scripts/docker/*.tar.gz
