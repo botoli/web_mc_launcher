@@ -1,0 +1,44 @@
+.empty-state {
+  text-align: center;
+  padding: 55px 15px;
+  color: var(--subtle);
+}
+.empty-state > svg {
+  color: var(--accent);
+  margin-bottom: 18px;
+}
+.empty-state h3 {
+  color: var(--text);
+  font-size: 17px;
+}
+.empty-state p {
+  margin: 10px auto 18px;
+  font-size: 12px;
+  max-width: 380px;
+}
+.confirm-dialog {
+  padding: 27px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--text);
+  background: var(--surface);
+  width: min(460px, calc(100% - 32px));
+}
+.confirm-dialog::backdrop {
+  background: #0009;
+  backdrop-filter: blur(4px);
+}
+.dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+.confirm-dialog p {
+  font-size: 13px;
+  color: var(--muted);
+}
+.confirm-dialog .actions {
+  margin-top: 25px;
+  justify-content: flex-end;
+}

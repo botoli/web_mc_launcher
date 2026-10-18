@@ -1,0 +1,62 @@
+@media (max-width: 1000px) {
+  .players-toolbar .search-field {
+    flex-basis: 100%;
+  }
+  .players-toolbar select {
+    flex: 1 1 120px;
+  }
+}
+@media (max-width: 700px) {
+  .players-page .page-heading {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .players-page .page-heading h1 {
+    font-size: 24px;
+  }
+  .players-page .page-heading > .button {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 11px;
+    gap: 6px;
+  }
+  .players-toolbar {
+    padding: 12px;
+    gap: 8px;
+  }
+  .players-toolbar select {
+    width: auto;
+    flex-basis: calc(50% - 4px);
+  }
+  .players-toolbar .results-count {
+    flex: 1;
+    text-align: right;
+  }
+  .players-table th:first-child,
+  .players-table .player-name-cell {
+    min-width: 145px;
+  }
+  .players-table .player-cell a,
+  .players-table .player-cell small {
+    max-width: 110px;
+  }
+  .players-table th,
+  .players-table td {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .players-table .avatar {
+    width: 30px;
+    height: 30px;
+  }
+  .players-table .player-cell {
+    gap: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+

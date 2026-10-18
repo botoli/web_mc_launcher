@@ -1,0 +1,102 @@
+/* Searchable filter popovers share the existing menu surface and focus treatment. */
+.multi-select-popup {
+  display: flex;
+  flex-direction: column;
+  width: 310px;
+  overflow: hidden;
+  padding: 6px;
+}
+.multi-select-search {
+  flex-shrink: 0;
+  min-width: 0;
+  color: var(--muted);
+}
+.multi-select-search > svg {
+  pointer-events: none;
+}
+.multi-select-search input {
+  min-height: 38px;
+  height: 38px;
+  padding: 8px 10px 8px 36px;
+  font-size: 11px;
+}
+.multi-select-summary {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  padding: 0 7px;
+  border-top: 1px solid #ffffff0c;
+  border-bottom: 1px solid #ffffff0c;
+  color: var(--muted);
+  font-size: 10px;
+}
+.multi-select-summary button {
+  min-height: 32px;
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 10px;
+}
+.multi-select-options {
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+}
+.multi-select-group {
+  padding: 10px 8px 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.multi-select-popup .multi-select-option {
+  justify-content: start;
+  min-height: 40px;
+  padding: 7px;
+  gap: 8px;
+}
+.multi-select-option-text {
+  min-width: 0;
+}
+.multi-select-option-text > span,
+.multi-select-option-text small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.multi-select-option-text small {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.multi-select-check {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.multi-select-popup .multi-select-option.selected {
+  color: var(--text);
+  background: #ac88f60a;
+}
+.multi-select-option.selected .multi-select-check {
+  border-color: var(--accent);
+  background: #ac88f620;
+  color: var(--accent);
+}
+.multi-select-state {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+

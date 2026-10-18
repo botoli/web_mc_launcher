@@ -219,6 +219,36 @@ test('unlinked users only get the download and code flow; old commands and butto
     assert.equal(f.saves(), 0);
 });
 
+test('linked accounts cannot reopen login by command or old button, and blocked login preserves pending actions', async t => {
+    const f = await fixture(t, { account: { nickname: 'Player', password: hashPassword('existing-password'), telegramId: '100' } });
+    await f.connect();
+    assert.equal(buttonData(await f.message(100, '/account'), 'menu:login'), undefined);
+    for (const action of ['/login', '/login@TestAuthBot', 'menu:login']) {
+        const result = action.startsWith('/') ? await f.message(100, action) : await f.callback(100, action);
+        assert.match(replyText(result), /команда \/login недоступна/);
+        assert.equal(buttonData(result, 'menu:login'), undefined);
+        assert.equal(savedState(f).conversations['100'], undefined);
+    }
+    await f.message(100, '/password');
+    const passwordContext = savedState(f).conversations['100'];
+    await f.message(100, '/login');
+    assert.deepEqual(savedState(f).conversations['100'], passwordContext);
+    await f.message(100, '/cancel');
+    await f.restart();
+    assert.match(replyText(await f.message(100, '/login')), /команда \/login недоступна/);
+    const c = await f.begin();
+    await f.start(100, c);
+    assert.match(replyText(await f.message(100, c.code)), /Подтвердите вход/);
+    const before = savedState(f);
+    await f.callback(100, 'menu:login');
+    const after = savedState(f);
+    assert.deepEqual(after.conversations['100'], before.conversations['100']);
+    assert.deepEqual(after.challenges[c.id], before.challenges[c.id]);
+    await f.callback(100, `yes:${c.code}`);
+    assert.equal((await f.poll(c)).body.status, 'confirmed');
+    assert.equal((await f.exchange(c)).status, 200);
+});
+
 test('pre-upgrade standalone conversations and unverified challenge stages cannot complete onboarding after restart', async t => {
     const f = await fixture(t); await f.connect();
     const c = await f.begin();

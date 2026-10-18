@@ -1,0 +1,76 @@
+.upload-panel {
+  padding: 26px;
+  background: #ac88f605;
+  border: 1px dashed #ac88f65c;
+  border-radius: 13px;
+  margin-bottom: 26px;
+}
+.upload-panel.dragging,
+.upload-panel:focus-within {
+  border-color: var(--accent);
+  background: #ac88f612;
+}
+.dropzone {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 22px;
+  padding: 17px;
+  cursor: pointer;
+}
+.upload-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  color: var(--accent);
+  background: #ac88f612;
+}
+.dropzone h2 {
+  font-size: 17px;
+  margin-bottom: 7px;
+}
+.dropzone h3 {
+  font-size: 17px;
+  margin-bottom: 7px;
+}
+.dropzone p {
+  color: var(--muted);
+  font-size: 12px;
+}
+.dropzone p span {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.dropzone small {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--subtle);
+}
+.selected-file {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid #ac88f625;
+  padding-top: 22px;
+  margin-top: 18px;
+}
+.selected-file > svg {
+  color: var(--accent);
+}
+.selected-file > div {
+  flex: 1;
+  min-width: 0;
+}
+.selected-file strong {
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.selected-file small {
+  display: block;
+  font-size: 10px;
+}

@@ -1,0 +1,330 @@
+/* The browser canvas stays one viewport tall; long lists scroll inside it. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+.app-shell {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.sidebar {
+  overflow-y: auto;
+}
+.main-content {
+  height: 100dvh;
+  min-height: 0;
+}
+.page-content {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  scrollbar-color: #464646 transparent;
+}
+.page-footer {
+  display: none;
+}
+.topbar {
+  height: 56px;
+  min-height: 56px;
+}
+.page-heading {
+  margin-bottom: 16px;
+}
+.page-heading p {
+  margin-top: 5px;
+}
+.page-content {
+  padding-top: 22px;
+  padding-bottom: 20px;
+}
+.build-hero {
+  min-height: 154px;
+}
+.hero-content {
+  padding: 19px 26px;
+}
+.hero-content h2 {
+  font-size: clamp(27px, 2.6vw, 34px);
+  margin: 7px 0 8px;
+}
+.server-address {
+  margin-top: 12px;
+}
+.build-hero .voxel-scene {
+  width: 215px;
+  height: 153px;
+  margin-right: 40px;
+}
+.stats-strip {
+  margin: 12px 0 16px;
+  padding-bottom: 12px;
+}
+.stats-strip strong {
+  font-size: 16px;
+}
+.build-layout {
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 240px;
+}
+.panel,
+.sync-note {
+  padding: 18px;
+}
+.section-heading {
+  margin-bottom: 14px;
+}
+.form-section h3 {
+  margin-bottom: 10px;
+}
+.form-section + .form-section {
+  padding-top: 14px;
+  margin-top: 15px;
+}
+.form-grid {
+  gap: 10px 14px;
+}
+.form-grid input,
+.form-grid select {
+  min-height: 38px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+.form-grid .field label {
+  margin-bottom: 4px;
+}
+.form-grid .field small {
+  margin-top: 3px;
+  line-height: 1.3;
+}
+.form-footer {
+  margin-top: 14px;
+  padding-top: 14px;
+}
+.build-aside {
+  gap: 16px;
+}
+.sync-note .round-icon {
+  margin-bottom: 11px;
+}
+.sync-note a {
+  margin-top: 10px;
+}
+.client-panel > svg {
+  margin-bottom: 10px;
+}
+.client-panel .button,
+.client-panel .badge {
+  margin-top: 12px;
+}
+.subtle-link {
+  margin-top: 12px;
+}
+.auth-layout {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.auth-story {
+  height: 100dvh;
+}
+.auth-main {
+  min-height: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.mods-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(590px, calc(100dvh - 330px));
+}
+.mods-panel .mod-list {
+  min-height: 0;
+  overflow-y: auto;
+}
+.players-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 255px);
+}
+.table-scroll {
+  min-height: 0;
+  overflow: auto;
+}
+.empty-state {
+  flex: 1;
+}
+@media (min-width: 1000px) {
+  .build-layout .form-section:last-child .form-grid {
+    grid-template-columns: 1fr 1fr 1.35fr;
+  }
+  .build-layout .form-section:last-child .span-two {
+    grid-column: auto;
+  }
+}
+@media (max-width: 1200px) {
+  .build-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .build-aside {
+    grid-template-columns: 1fr 1fr;
+  }
+  .build-hero .voxel-scene {
+    width: 210px;
+    height: 153px;
+    margin-right: 12px;
+  }
+}
+@media (max-width: 700px) {
+  .main-content {
+    height: calc(100dvh - 73px);
+    min-height: 0;
+  }
+  .page-content {
+    padding: 22px 20px;
+  }
+  .sidebar {
+    height: 100dvh;
+  }
+  .auth-main {
+    height: 100dvh;
+    min-height: 0;
+  }
+  .build-hero .voxel-scene {
+    position: absolute;
+    right: -40px;
+    margin-right: 0;
+  }
+  .mods-panel,
+  .players-panel {
+    max-height: none;
+  }
+  .mods-panel .mod-list,
+  .table-scroll {
+    overflow: auto;
+  }
+}
+@media (max-width: 460px) {
+  .page-content {
+    padding: 20px 16px;
+  }
+  .build-hero {
+    min-height: 180px;
+  }
+  .hero-content {
+    padding: 20px;
+  }
+  .build-hero .voxel-scene {
+    right: -85px;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-grid .span-two {
+    grid-column: auto;
+  }
+  .build-aside {
+    grid-template-columns: 1fr;
+  }
+}
+@media (min-width: 1000px) and (max-height: 820px) {
+  .topbar {
+    height: 48px;
+    min-height: 48px;
+  }
+  .page-content {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .page-heading {
+    margin-bottom: 10px;
+  }
+  .page-heading h1 {
+    font-size: 27px;
+  }
+  .build-hero {
+    min-height: 112px;
+  }
+  .hero-content {
+    padding: 10px 22px;
+  }
+  .hero-content h2 {
+    font-size: 27px;
+    margin: 3px 0 4px;
+  }
+  .hero-tags span {
+    padding-top: 1px;
+    padding-bottom: 1px;
+  }
+  .server-address {
+    margin-top: 6px;
+  }
+  .build-hero .voxel-scene {
+    height: 112px;
+    width: 166px;
+  }
+  .stats-strip {
+    margin: 8px 0 10px;
+    padding-bottom: 8px;
+  }
+  .build-layout {
+    gap: 14px;
+  }
+  .panel,
+  .sync-note {
+    padding: 14px;
+  }
+  .section-heading {
+    margin-bottom: 8px;
+  }
+  .form-section h3 {
+    margin-bottom: 6px;
+  }
+  .form-section + .form-section {
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+  .form-grid {
+    gap: 8px 12px;
+  }
+  .form-grid input,
+  .form-grid select {
+    min-height: 34px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+  .form-footer {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+  .build-aside {
+    gap: 10px;
+  }
+  .sync-note p,
+  .client-panel p {
+    line-height: 1.6;
+  }
+  .sync-note a,
+  .subtle-link {
+    margin-top: 7px;
+  }
+  .auth-main {
+    padding: 20px 30px;
+  }
+  .auth-form {
+    padding: 18px 0;
+  }
+  .auth-description {
+    margin: 8px 0 18px;
+  }
+  .auth-form .field {
+    margin-bottom: 12px;
+  }
+  .auth-main > footer {
+    padding-top: 10px;
+  }
+}
+

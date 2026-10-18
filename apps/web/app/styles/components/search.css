@@ -1,0 +1,25 @@
+.count {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 5px;
+  background: #ac88f612;
+  color: var(--accent);
+  padding: 3px 7px;
+  font-size: 10px;
+  margin-left: 7px;
+}
+.search-field {
+  position: relative;
+  min-width: 180px;
+}
+.search-field > svg {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--subtle);
+}
+.search-field input {
+  padding-left: 40px;
+  font-size: 11px;
+}

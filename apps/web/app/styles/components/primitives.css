@@ -1,0 +1,111 @@
+.button {
+  display: inline-flex;
+  min-height: 43px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 17px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.5;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+  white-space: nowrap;
+}
+.button.primary {
+  background: var(--accent);
+  color: #21162f;
+}
+
+.button.secondary {
+  border-color: var(--line);
+  background: transparent;
+}
+
+.button.danger {
+  background: #ffaaa918;
+  color: var(--danger);
+  border-color: #ffaaa950;
+}
+
+.full-width {
+  width: 100%;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.icon-button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.badge.confirmed {
+  color: var(--mint);
+  background: #b8febf0d;
+}
+.badge.pending {
+  color: var(--accent);
+  background: #ac88f613;
+}
+.badge.banned {
+  color: var(--danger);
+  background: #ffaaa910;
+}
+.badge.neutral {
+  background: #ffffff08;
+  color: var(--muted);
+}
+.status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 16px;
+  border: 1px solid;
+  border-radius: 9px;
+  margin: 16px 0;
+  font-size: 13px;
+}
+.notice svg {
+  margin-top: 1px;
+}
+.notice.success {
+  color: var(--mint);
+  background: #b8febf08;
+  border-color: #b8febf30;
+}
+.notice.error {
+  color: var(--danger);
+  background: #ffaaa908;
+  border-color: #ffaaa938;
+}

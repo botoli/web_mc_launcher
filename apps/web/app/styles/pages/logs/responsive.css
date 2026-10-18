@@ -1,0 +1,22 @@
+@media (min-width: 1051px) and (max-width: 1499px) {
+  .log-filters {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.4fr) repeat(3, minmax(0, 1fr));
+  }
+  .log-date-range {
+    grid-column: 1 / span 2;
+    width: 340px;
+    max-width: 100%;
+  }
+  .log-filter-buttons {
+    grid-column: 3 / span 2;
+    justify-self: end;
+  }
+}
+@media (max-width: 700px) {
+  .log-state {
+    position: sticky;
+    left: 0;
+    max-width: calc(100vw - 58px);
+  }
+}

@@ -1,0 +1,58 @@
+.build-aside {
+  display: grid;
+  gap: 20px;
+}
+.sync-note {
+  background: #b8febf07;
+  border: 1px solid #b8febf24;
+  border-radius: 13px;
+  padding: 24px;
+}
+.round-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: #b8febf13;
+  border-radius: 50%;
+  color: var(--mint);
+  margin-bottom: 18px;
+}
+.sync-note h2,
+.client-panel h2 {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+.sync-note p,
+.client-panel p {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.9;
+}
+.sync-note a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mint);
+}
+.client-panel > svg {
+  color: var(--accent);
+  margin-bottom: 18px;
+}
+.client-panel .button,
+.client-panel .badge {
+  margin-top: 17px;
+}
+.subtle-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: 10px;
+}
+

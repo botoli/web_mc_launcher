@@ -1,0 +1,37 @@
+.skeleton {
+  display: block;
+  border-radius: 5px;
+  background: #ffffff0b;
+  animation: skeleton-pulse 1.5s ease-in-out infinite alternate;
+}
+.player-skeleton-row .skeleton-name {
+  width: 100px;
+  height: 12px;
+}
+.player-skeleton-row .skeleton-detail {
+  width: 70px;
+  height: 9px;
+  margin-top: 7px;
+}
+.player-skeleton-row .skeleton-value {
+  width: 80px;
+  height: 14px;
+}
+.player-skeleton-row .skeleton-action {
+  width: 36px;
+  height: 36px;
+}
+.player-skeleton-row .avatar.skeleton {
+  width: 35px;
+  height: 35px;
+  border-radius: 10px;
+}
+.skeleton-toolbar {
+  width: 100%;
+  height: 40px;
+}
+@keyframes skeleton-pulse {
+  to {
+    opacity: 0.4;
+  }
+}

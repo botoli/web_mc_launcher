@@ -1,0 +1,130 @@
+.mod-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mod-list li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid #ffffff0c;
+  padding: 16px 0;
+}
+.mod-list li:last-child {
+  padding-bottom: 0;
+}
+.file-icon {
+  width: 41px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: #ac88f60b;
+  border: 1px solid #ac88f61c;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+.mod-name {
+  flex: 1;
+  min-width: 0;
+}
+.mod-name strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.mod-name small {
+  font-size: 10px;
+  color: var(--subtle);
+}
+.mods-configs-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.mods-configs-layout > section {
+  min-width: 0;
+  position: relative;
+}
+.mods-configs-layout .resource-heading {
+  min-height: 46px;
+}
+.mods-configs-layout .upload-panel {
+  padding: 20px;
+  margin-bottom: 18px;
+}
+.mods-configs-layout .dropzone {
+  padding: 10px 0;
+  gap: 14px;
+}
+.mods-configs-layout .dropzone h2,
+.mods-configs-layout .dropzone h3 {
+  font-size: 15px;
+}
+.mods-configs-layout .dropzone p {
+  font-size: 11px;
+}
+.mods-configs-layout .upload-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+.mods-configs-layout .selected-file {
+  flex-wrap: wrap;
+}
+.mods-configs-layout .selected-file > .button {
+  width: 100%;
+}
+.mods-configs-layout .mods-panel .section-heading {
+  flex-wrap: wrap;
+}
+.mods-configs-layout .mods-panel .search-field {
+  flex: 1;
+}
+.config-archive-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--accent);
+}
+.config-archive-name strong {
+  overflow-wrap: anywhere;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.config-details {
+  margin: 18px 0;
+  font-size: 11px;
+}
+.config-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+.config-details dt {
+  color: var(--muted);
+}
+.config-details dd {
+  margin: 0;
+  text-align: right;
+}
+.configs-hint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #ffffff0c;
+}
+.configs-panel .empty-state {
+  padding: 24px 10px;
+}
+@media (max-width: 1100px) {
+  .mods-configs-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

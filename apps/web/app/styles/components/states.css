@@ -1,0 +1,45 @@
+.standalone {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 22px;
+  padding: 30px;
+  text-align: center;
+}
+.standalone p {
+  color: var(--muted);
+}
+.display-number {
+  color: var(--accent);
+  font-size: 110px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.08em;
+}
+.loading-state {
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  color: var(--muted);
+}
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+.spinning {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

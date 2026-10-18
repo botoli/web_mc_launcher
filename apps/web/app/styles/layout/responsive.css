@@ -1,0 +1,352 @@
+@media (min-width: 1500px) {
+  .page-content {
+    padding-top: 45px;
+  }
+  .build-hero {
+    min-height: 260px;
+  }
+  .hero-content {
+    padding: 35px 40px;
+  }
+  .build-hero .voxel-scene {
+    width: 380px;
+    height: 260px;
+  }
+}
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 210px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .main-content {
+    margin-left: 210px;
+  }
+  .topbar,
+  .page-footer {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+  .page-content {
+    padding: 30px 28px;
+  }
+  .build-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .build-aside {
+    grid-template-columns: 1fr 1fr;
+  }
+  .build-hero .voxel-scene {
+    width: 250px;
+    margin-right: 10px;
+  }
+  .page-heading {
+    align-items: flex-start;
+  }
+  .page-heading > .badge {
+    font-size: 10px;
+    margin-top: 5px;
+  }
+  .stats-strip > * {
+    padding: 0 13px;
+    gap: 9px;
+  }
+  .stats-strip strong {
+    display: block;
+  }
+  .auth-story {
+    padding-left: 35px;
+    padding-right: 35px;
+  }
+}
+@media (max-width: 850px) {
+  .page-heading {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .profile-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .profile-details dl {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .profile-details dl > div + div {
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .auth-layout {
+    grid-template-columns: 40% 60%;
+  }
+  .auth-story {
+    padding: 35px 24px 24px;
+  }
+  .auth-story h2 {
+    font-size: 34px;
+  }
+  .auth-main {
+    padding: 30px;
+  }
+  .auth-form h1 {
+    font-size: 26px;
+  }
+  .build-hero .voxel-scene {
+    position: absolute;
+    right: -45px;
+    opacity: 0.55;
+  }
+  .hero-content {
+    padding: 27px;
+  }
+  .table-toolbar {
+    flex-wrap: wrap;
+  }
+  .table-toolbar .search-field {
+    flex: 1;
+    min-width: 180px;
+  }
+  .results-count {
+    width: 100%;
+  }
+  .mods-panel .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .mods-panel .search-field {
+    width: 100%;
+  }
+}
+@media (max-width: 700px) {
+  .mobile-bar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    align-items: center;
+    justify-content: space-between;
+    height: 73px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid #ffffff0a;
+    z-index: 20;
+  }
+  .mobile-bar .brand-mark {
+    width: 35px;
+    height: 37px;
+    border-radius: 10px;
+  }
+  .mobile-bar .brand {
+    font-size: 13px;
+  }
+  .mobile-bar .brand-subtitle {
+    font-size: 9px;
+  }
+  .sidebar {
+    transform: translateX(-100%);
+    width: 250px;
+    transition: transform 0.2s;
+  }
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+  .sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: #0009;
+    border: 0;
+    z-index: 25;
+  }
+  .main-content {
+    margin-left: 0;
+    min-height: calc(100dvh - 73px);
+  }
+  .topbar {
+    display: none;
+  }
+  .page-content {
+    padding: 27px 20px;
+  }
+  .page-heading h1 {
+    font-size: 27px;
+  }
+  .page-heading p {
+    font-size: 12px;
+  }
+  .page-footer {
+    padding: 20px;
+  }
+  .page-footer span:last-child {
+    display: none;
+  }
+  .auth-layout {
+    display: block;
+  }
+  .auth-story {
+    display: none;
+  }
+  .auth-main {
+    min-height: 100dvh;
+    padding: 25px;
+  }
+  .auth-mobile-brand {
+    display: block;
+  }
+  .auth-form {
+    padding: 45px 0;
+  }
+  .auth-form h1 {
+    font-size: 29px;
+  }
+}
+@media (max-width: 460px) {
+  .page-content {
+    padding: 25px 16px;
+  }
+  .page-heading h1 {
+    font-size: 25px;
+  }
+  .build-hero {
+    min-height: 220px;
+  }
+  .hero-content {
+    padding: 24px 20px;
+  }
+  .hero-content h2 {
+    font-size: 29px;
+  }
+  .build-hero .voxel-scene {
+    right: -90px;
+    opacity: 0.25;
+  }
+  .stats-strip {
+    gap: 10px;
+  }
+  .stats-strip > * {
+    display: block;
+    padding: 0 10px;
+  }
+  .stats-strip > * > svg {
+    width: 18px;
+    margin-bottom: 6px;
+  }
+  .stats-strip > * > svg:last-child:not(:first-child) {
+    display: none;
+  }
+  .stats-strip strong {
+    font-size: 18px;
+    margin: 0;
+  }
+  .stats-strip span {
+    display: block;
+    font-size: 9px;
+    line-height: 1.7;
+  }
+  .panel,
+  .sync-note {
+    padding: 20px;
+  }
+  .section-heading {
+    flex-wrap: wrap;
+  }
+  .form-grid {
+    gap: 18px;
+    grid-template-columns: 1fr;
+  }
+  .span-two {
+    grid-column: auto;
+  }
+  .form-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .form-footer .actions {
+    justify-content: flex-end;
+  }
+  .form-footer .button {
+    flex: 1;
+  }
+  .build-aside {
+    grid-template-columns: 1fr;
+  }
+  .dropzone {
+    flex-direction: column;
+    text-align: center;
+    padding: 10px 0;
+    gap: 15px;
+  }
+  .upload-panel {
+    padding: 20px;
+  }
+  .selected-file {
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+  .selected-file > div {
+    flex-basis: 60%;
+  }
+  .selected-file > .button {
+    width: 100%;
+  }
+  .mod-list li {
+    gap: 9px;
+  }
+  .file-icon {
+    width: 32px;
+    height: 36px;
+  }
+  .mod-list .icon-button {
+    width: 30px;
+  }
+  .mod-name strong {
+    font-size: 11px;
+  }
+  .player-summary {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 5px;
+  }
+  .player-summary .summary-divider {
+    display: none;
+  }
+  .player-summary > span:last-child {
+    flex-basis: 100%;
+    margin-left: 35px;
+  }
+  .players-panel {
+    padding: 0;
+  }
+  .table-toolbar {
+    padding: 18px;
+  }
+  .table-toolbar .search-field,
+  .table-toolbar select {
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .profile-details dl {
+    grid-template-columns: 1fr;
+  }
+  .profile-hero {
+    gap: 18px;
+  }
+  .profile-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 20px;
+  }
+  .profile-hero h2 {
+    font-size: 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
