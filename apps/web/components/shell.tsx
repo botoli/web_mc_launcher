@@ -28,8 +28,8 @@ const links = [
   { href: "/logs", label: "Логи", icon: ScrollText },
   { href: "/profile", label: "Мой профиль", icon: UserRound },
 ];
-function NavigationFeedback({ pending }: { pending: boolean }) {
-  return pending ? createPortal(<div className="navigation-feedback"><BlockLoader compact label="Загружаем страницу…" /></div>, document.body) : null;
+function NavigationScreen({ pending }: { pending: boolean }) {
+  return pending ? createPortal(<div className="navigation-screen"><BlockLoader label="Загружаем страницу…" /></div>, document.body) : null;
 }
 export function Brand() {
   return (
@@ -55,25 +55,51 @@ export function Shell({
   const [departing, setDeparting] = useState(false);
   useEffect(() => {
     const restored = () => setDeparting(false);
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      // Keep the current page usable if an unsaved-changes prompt cancels navigation.
+      queueMicrotask(() => { if (event.defaultPrevented) restored(); });
+    };
     window.addEventListener('pageshow', restored);
-    return () => window.removeEventListener('pageshow', restored);
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => {
+      window.removeEventListener('pageshow', restored);
+      window.removeEventListener('beforeunload', beforeUnload);
+    };
   }, []);
+  useEffect(() => setDeparting(false), [pathname]);
   const scrimPresent = useMenuPresence(open);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  function navigate(href: string) {
+    setOpen(false);
+    setDeparting(true);
+    // Paint the loading screen before the browser starts replacing the document.
+    requestAnimationFrame(() => requestAnimationFrame(() => window.location.assign(href)));
+  }
   async function logout() {
     setBusy(true);
     setError("");
     try {
       await api("/api/logout", { method: "POST" });
-      window.location.assign("/login");
+      navigate("/login");
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
     }
   }
   return (
-    <div className="app-shell">
+    <div className="app-shell" inert={departing} aria-hidden={departing || undefined}
+      onClickCapture={event => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !(event.target instanceof Element)) return;
+        const link = event.target.closest<HTMLAnchorElement>('a[href]');
+        if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
+        const next = new URL(link.href, window.location.href);
+        const page = /^\/(?:mods|logs|profile|login|register)?\/?$/.test(next.pathname) || /^\/players(?:\/[^/]+)?\/?$/.test(next.pathname);
+        if (next.origin !== window.location.origin || !page) return;
+        if (next.pathname === window.location.pathname && next.search === window.location.search && next.hash) return;
+        event.preventDefault();
+        navigate(next.href);
+      }}>
       <div className="mobile-bar">
         <Brand />
         <button
@@ -104,10 +130,7 @@ export function Shell({
             <a
               key={href}
               href={href}
-              onClick={event => {
-                setOpen(false);
-                if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) setDeparting(true);
-              }}
+              onClick={() => setOpen(false)}
               className={`nav-link ${pathname === href || (href !== '/' && pathname.startsWith(href + '/')) ? "active" : ""}`}
               aria-current={pathname === href || (href !== '/' && pathname.startsWith(href + '/')) ? "page" : undefined}
             >
@@ -149,7 +172,7 @@ export function Shell({
           </div>
         </div>
       </aside>
-      <NavigationFeedback pending={departing} />
+      <NavigationScreen pending={departing} />
       <main className="main-content">
         <div className="topbar">
           <span>Рабочее пространство</span>

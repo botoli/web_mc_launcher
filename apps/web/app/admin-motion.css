@@ -199,11 +199,19 @@
 .log-meta .block-loader-compact { padding: 0; gap: 8px; }
 .log-meta .block-loader-blocks { width: 44px; height: 24px; gap: 12px; }
 .log-meta .block-loader-blocks > span { width: 8px; height: 8px; }
-.navigation-feedback { position: fixed; bottom: 18px; left: 18px; z-index: 110; pointer-events: none; }
-.navigation-feedback .block-loader {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-  box-shadow: 0 4px 16px #0003; animation: content-enter 180ms ease-out both;
+.navigation-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--base);
 }
+.navigation-screen .block-loader { min-height: 0; width: 100%; }
+.navigation-screen .block-loader-blocks { width: 80px; height: 40px; gap: 18px; }
+.navigation-screen .block-loader-blocks > span { width: 14px; height: 14px; }
+.navigation-screen .block-loader-label { font-size: 13px; }
 
 @keyframes content-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes content-enter { from { opacity: 0; translate: 0 7px; } to { opacity: 1; translate: 0 0; } }
