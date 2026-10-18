@@ -1,0 +1,56 @@
+// Shared by React, Express and the standalone reverse-proxy fallback pages.
+const errorPages = {
+  404: {
+    title: "Страница не найдена",
+    description: "Возможно, адрес изменился или в ссылке есть опечатка.",
+    hint: "Проверьте адрес или вернитесь на главную.",
+  },
+  500: {
+    title: "Что-то пошло не так",
+    description: "Не удалось загрузить страницу из-за ошибки на сервере.",
+    hint: "Попробуйте ещё раз через несколько секунд.",
+  },
+  502: {
+    title: "Сервер временно недоступен",
+    description: "Не удалось получить ответ от сервера.",
+    hint: "Подождите немного и попробуйте ещё раз.",
+  },
+  503: {
+    title: "Небольшая пауза",
+    description: "Сервис временно недоступен. Пожалуйста, подождите немного.",
+    hint: "Попробуйте обновить страницу через несколько секунд.",
+  },
+  504: {
+    title: "Ответ занимает больше времени",
+    description: "Сервер не успел ответить на запрос.",
+    hint: "Подождите немного и попробуйте ещё раз.",
+  },
+};
+
+const errorPageCSS = `
+.error-screen{box-sizing:border-box;min-height:100vh;min-height:100dvh;width:100%;margin:0;padding:40px 24px;display:flex;align-items:center;justify-content:center;background:#1a1a1a;color:#f4f2f8;font:14px/1.6 "Manrope Variable","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.error-screen *{box-sizing:border-box}
+.error-screen__content{width:100%;max-width:480px;text-align:center}
+.error-screen__brand{display:block;margin-bottom:48px;color:#b4b1bc;font-size:12px;font-weight:600;letter-spacing:.08em}
+.error-screen__code{display:block;margin-bottom:24px;color:#ac88f6;font-size:clamp(88px,17vw,128px);font-weight:800;line-height:1;letter-spacing:-.07em;font-variant-numeric:tabular-nums}
+.error-screen h1{margin:0 0 16px;font-size:clamp(25px,5vw,32px);font-weight:700;line-height:1.25;letter-spacing:-.035em;text-wrap:balance}
+.error-screen__description{margin:0 auto;max-width:380px;color:#b4b1bc;font-size:15px;text-wrap:pretty}
+.error-screen__hint{margin:10px auto 0;max-width:380px;color:#b4b1bc;font-size:13px;text-wrap:pretty}
+.error-screen__actions{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:32px}
+.error-screen__button{display:inline-flex;min-height:46px;align-items:center;justify-content:center;gap:9px;border:1px solid #464646;border-radius:10px;padding:11px 20px;background:transparent;color:#f4f2f8;font:inherit;font-weight:600;line-height:1.5;text-decoration:none;cursor:pointer;touch-action:manipulation;transition:background .15s,border-color .15s}
+.error-screen__button:hover{background:#282828;border-color:#777}
+.error-screen__button--primary{background:#ac88f6;border-color:#ac88f6;color:#1a1a1a}
+.error-screen__button--primary:hover{background:#bd9df9;border-color:#bd9df9}
+.error-screen__button:focus-visible{outline:2px solid #ac88f6;outline-offset:4px}
+.error-screen__button svg{flex-shrink:0}
+@media(max-width:420px){.error-screen{padding:32px 20px}.error-screen__brand{margin-bottom:36px}.error-screen__actions{flex-direction:column}.error-screen__button{width:100%}}
+@media(prefers-reduced-motion:reduce){.error-screen__button{transition:none}}
+`;
+
+function renderErrorPage(status) {
+  const code = Object.hasOwn(errorPages, status) ? status : 500;
+  const page = errorPages[code];
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#1a1a1a"><title>${code} · ${page.title} · Minecraft Launcher</title><style>body{margin:0}${errorPageCSS}</style></head><body><main class="error-screen"><div class="error-screen__content"><span class="error-screen__brand">MINECRAFT LAUNCHER</span><span class="error-screen__code">${code}</span><h1>${page.title}</h1><p class="error-screen__description">${page.description}</p><p class="error-screen__hint">${page.hint}</p><div class="error-screen__actions">${code === 404 ? "" : '<button class="error-screen__button error-screen__button--primary" type="button" onclick="window.location.reload()">Попробовать ещё раз</button>'}<a class="error-screen__button${code === 404 ? " error-screen__button--primary" : ""}" href="/">На главную</a></div></div></main></body></html>`;
+}
+
+module.exports = { errorPages, errorPageCSS, renderErrorPage };

@@ -7,6 +7,7 @@ RUN npm ci
 FROM dependencies AS build
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY apps ./apps
+COPY scripts/build-error-pages.js ./scripts/build-error-pages.js
 RUN npm run build
 
 FROM node:24-bookworm-slim AS production-dependencies
@@ -20,6 +21,7 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY package.json ./
 COPY apps/api ./apps/api
+COPY apps/shared ./apps/shared
 COPY apps/bot ./apps/bot
 COPY --from=build /app/apps/web ./apps/web
 COPY scripts/run.js ./scripts/run.js

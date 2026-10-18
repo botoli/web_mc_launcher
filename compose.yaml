@@ -64,6 +64,7 @@ services:
       - '${HTTP_BIND:-0.0.0.0}:${TLS_PORT:-443}:443'
     volumes:
       - ./deploy/docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/error-pages:/srv/error-pages:ro
       - caddy_data:/data
       - caddy_config:/config
     networks: [web]

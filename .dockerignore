@@ -5,6 +5,7 @@
 !apps/**
 !scripts/
 !scripts/run.js
+!scripts/build-error-pages.js
 !scripts/docker/
 !scripts/docker/**
 # Never include credentials, real data, old builds or local dependencies.

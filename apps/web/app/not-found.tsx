@@ -1,13 +1,5 @@
-import Link from "next/link";
+import { ErrorScreen } from "@/components/error-screen";
+
 export default function NotFound() {
-  return (
-    <main className="standalone">
-      <span className="display-number">404</span>
-      <h1>Здесь пока ничего нет</h1>
-      <p>Проверьте адрес или вернитесь к своей сборке.</p>
-      <Link className="button primary" href="/">
-        На главную
-      </Link>
-    </main>
-  );
+  return <ErrorScreen code={404} />;
 }

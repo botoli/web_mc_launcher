@@ -4,4 +4,20 @@
     }
     encode gzip zstd
     reverse_proxy app:3000
+    handle_errors 500 502 503 504 {
+        @page {
+            header Accept *text/html*
+            not path /api /api/* /download/* /mods/* /_next/*
+        }
+        handle @page {
+            root * /srv/error-pages
+            rewrite /{err.status_code}.html
+            header Cache-Control no-store
+            header X-Robots-Tag "noindex, nofollow"
+            file_server
+        }
+        handle {
+            respond "{err.status_text}" {err.status_code}
+        }
+    }
 }
