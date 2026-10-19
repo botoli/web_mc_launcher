@@ -56,4 +56,4 @@ export type DashboardData = {
   useHTTPS: boolean;
   publicURL: string;
 };
-export type ClientInfo = { version: string; url: string; size: number };
+export type ClientInfo = { version: string; url: string; size: number; sha256: string | null };

@@ -1,11 +1,13 @@
 node_modules/
 
 data/clients/
+data/launcher/
 data/configs/
 data/certs/
 data/users.json
 .env*
 apps/web/.next/
+apps/web/.next-old-*/
 apps/web/tsconfig.tsbuildinfo
 artifacts/
 bot/.env

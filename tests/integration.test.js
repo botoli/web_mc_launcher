@@ -229,6 +229,54 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
     await screenshot("dashboard-desktop.png");
   });
 
+  await t.test("launcher upload publishes latest version and keeps old downloads", async () => {
+    const previous = await (await fetch(`${app.baseURL}/api/client-info`)).json();
+    assert.equal(previous.version, '1.0.0');
+    const oldDownload = await fetch(`${app.baseURL}/api/download-launcher`);
+    assert.equal(await oldDownload.text(), 'Test launcher fixture');
+    const launcherZip = contents => makeZip([
+      ['EquestrianDreamLauncher.exe', contents], ['README.txt', 'Installation instructions'],
+    ]);
+    const form = (version, contents) => {
+      const body = new FormData();
+      body.set('version', version);
+      body.set('launcher', new Blob([contents]), 'launcher.zip');
+      return body;
+    };
+    const player = await (await post('/api/auth', { login: 'alex', password: 'test-password' })).json();
+    assert.equal((await fetch(`${app.baseURL}/api/upload-launcher`, {
+      method: 'POST', headers: { Authorization: `Bearer ${player.token}` }, body: form('2.0.0', await launcherZip('MZplayer')),
+    })).status, 403);
+    assert.equal((await fetch(`${app.baseURL}/api/upload-launcher`, {
+      method: 'POST', headers: { Authorization: `Bearer ${roleManager.token}` }, body: form('../bad', await launcherZip('MZinvalid')),
+    })).status, 400);
+
+    const firstZip = await launcherZip('MZfirst version');
+    await page.getByLabel('ZIP лаунчера Windows').setInputFiles({
+      name: 'launcher.zip', mimeType: 'application/zip', buffer: firstZip,
+    });
+    await page.getByLabel('Версия лаунчера').fill('2.0.0');
+    await page.getByRole('button', { name: 'Опубликовать версию' }).click();
+    await expect(page.locator('.client-panel .notice.success')).toContainText('опубликована');
+    const first = await (await fetch(`${app.baseURL}/api/launcher-update?platform=windows-x64`)).json();
+    assert.equal(first.version, '2.0.0');
+    assert.equal(first.size, firstZip.length);
+    assert.equal(new URL(first.url).pathname, '/download/launcher/2.0.0.zip');
+    assert.deepEqual(Buffer.from(await (await fetch(first.url)).arrayBuffer()), firstZip);
+    assert.match(await (await fetch(`${app.baseURL}/login`)).text(), /Скачать лаунчер/);
+
+    const secondZip = await launcherZip('MZsecond version');
+    const next = await fetch(`${app.baseURL}/api/upload-launcher`, {
+      method: 'POST', headers: { Authorization: `Bearer ${roleManager.token}` }, body: form('2.0.1', secondZip),
+    });
+    assert.equal(next.status, 200);
+    assert.equal((await (await fetch(`${app.baseURL}/api/launcher-update?platform=windows-x64`)).json()).version, '2.0.1');
+    assert.deepEqual(Buffer.from(await (await fetch(first.url)).arrayBuffer()), firstZip);
+    assert.deepEqual(Buffer.from(await fs.readFile(path.join(app.fixture, 'data/launcher/releases/2.0.0.zip'))), firstZip);
+    await page.getByRole('link', { name: 'Мой профиль' }).click();
+    await expect(page.getByRole('link', { name: 'Скачать последнюю версию' })).toBeVisible();
+  });
+
   await t.test(
     "mod upload, search, download and confirmed deletion",
     async () => {

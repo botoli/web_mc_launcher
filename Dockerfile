@@ -26,7 +26,7 @@ COPY apps/bot ./apps/bot
 COPY --from=build /app/apps/web ./apps/web
 COPY scripts/run.js ./scripts/run.js
 COPY scripts/docker ./scripts/docker
-RUN mkdir -p data/mods data/clients data/configs apps/web/.next/cache /var/lib/mc-launcher-bot \
+RUN mkdir -p data/mods data/clients data/configs data/launcher/releases apps/web/.next/cache /var/lib/mc-launcher-bot \
     && chown -R node:node data apps/web/.next /var/lib/mc-launcher-bot
 USER node
 EXPOSE 3000

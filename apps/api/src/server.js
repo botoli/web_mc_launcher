@@ -40,6 +40,7 @@ async function main() {
 
   const MODS_DIR = path.join(DATA_DIR, "mods");
   const CLIENTS_DIR = path.join(DATA_DIR, "clients");
+  const launcherReleases = require('./launcher/releases').createLauncherReleases(DATA_DIR, publicURL);
 
   if (
     fs.existsSync(path.join(DATA_DIR, "users.json")) &&
@@ -236,6 +237,17 @@ async function main() {
     next();
   });
 
+  app.get('/download/launcher/:archive', async (req, res, next) => {
+    const version = req.params.archive.replace(/\.zip$/, '');
+    if (`${version}.zip` !== req.params.archive) return res.sendStatus(404);
+    try {
+      const release = await database.transaction(state => state.settings.launcherReleases?.versions?.[version]);
+      const file = launcherReleases.file(version);
+      if (!release || !file || !fs.existsSync(file)) return res.sendStatus(404);
+      res.set('Cache-Control', 'public, max-age=31536000, immutable');
+      res.download(file, `${version}.zip`);
+    } catch (error) { next(error); }
+  });
   app.use("/download", express.static(CLIENTS_DIR));
   app.use("/mods", express.static(MODS_DIR, { redirect: false, index: false }));
 
@@ -823,14 +835,62 @@ async function main() {
   });
 
   // ======================== API: Client info ========================
+  app.post("/api/upload-launcher", adminRequired, async (req, res) => {
+    try {
+      const version = String(req.body?.version || '').trim();
+      const settings = database.settings();
+      const release = await launcherReleases.publish(req.files?.launcher, version, settings.launcherReleases?.versions);
+      const catalog = settings.launcherReleases || { versions: {} };
+      catalog.versions[version] = release;
+      catalog.current = version;
+      settings.launcherReleases = catalog;
+      playerServices.audit(req, req.user.login, 'administration', 'launcher_uploaded', { target: release.file });
+      res.json({ success: true, version, url: launcherReleases.url(version), sha256: release.sha256, size: release.size });
+    } catch (error) {
+      if (!error.status) console.error("[MCL] Launcher upload:", error.message);
+      res.status(error.status || 500).json({ error: error.status ? error.message : 'Не удалось сохранить лаунчер. Попробуйте ещё раз.' });
+    }
+  });
+
+  app.get('/api/launcher-update', (req, res) => {
+    if (req.query.platform !== launcherReleases.platform)
+      return res.status(400).json({ error: 'Поддерживается только platform=windows-x64.' });
+    const catalog = database.settings().launcherReleases;
+    const release = catalog?.versions?.[catalog.current];
+    if (!release || !fs.existsSync(launcherReleases.file(release.version)))
+      return res.status(404).json({ error: 'Обновление лаунчера пока не опубликовано.' });
+    res.set('Cache-Control', 'no-store');
+    res.json({ version: release.version, url: launcherReleases.url(release.version), sha256: release.sha256, size: release.size });
+  });
+
+  app.get("/api/download-launcher", (req, res) => {
+    const file = database.settings().client?.file;
+    if (!file || file !== path.basename(file) || !/\.(exe|zip)$/i.test(file))
+      return res.status(404).json({ error: "Лаунчер пока недоступен." });
+    const filePath = path.join(CLIENTS_DIR, file);
+    if (!fs.existsSync(filePath))
+      return res.status(404).json({ error: "Лаунчер пока недоступен." });
+    res.set("Cache-Control", "no-store");
+    res.download(filePath, file);
+  });
+
   app.get("/api/client-info", (req, res) => {
+    const catalog = database.settings().launcherReleases;
+    const release = catalog?.versions?.[catalog.current];
+    if (release && fs.existsSync(launcherReleases.file(release.version))) {
+      res.set('Cache-Control', 'no-store');
+      return res.json({ version: release.version, url: launcherReleases.url(release.version), sha256: release.sha256, size: release.size });
+    }
     const versionData = database.settings().client;
-    const filePath = path.join(CLIENTS_DIR, versionData.file);
-    const size = fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
+    const file = versionData?.file;
+    const filePath = file && file === path.basename(file) ? path.join(CLIENTS_DIR, file) : null;
+    const size = filePath && fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
+    res.set("Cache-Control", "no-store");
     res.json({
-      version: versionData.version,
-      url: `${publicURL}/download/${versionData.file}`,
+      version: versionData?.version || "",
+      url: `${publicURL}/api/download-launcher`,
       size: size,
+      sha256: size ? versionData.sha256 || null : null,
     });
   });
 

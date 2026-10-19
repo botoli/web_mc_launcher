@@ -2,20 +2,23 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Download, Eye, EyeOff } from "lucide-react";
 import { api, errorMessage, json } from "@/lib/api";
 import { Field, Notice } from "./ui";
+import type { ClientInfo } from "@/lib/types";
 
 export function AuthForm({
   register = false,
   redirectTo = "/profile",
   registered = false,
   initialError = "",
+  client = null,
 }: {
   register?: boolean;
   redirectTo?: string;
   registered?: boolean;
   initialError?: string;
+  client?: ClientInfo | null;
 }) {
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -170,6 +173,11 @@ export function AuthForm({
           {register ? "Войти" : "Создать аккаунт"}
         </Link>
       </p>
+      {!register && client && client.size > 0 && (
+        <a className="button secondary full-width launcher-download" href={client?.url} download>
+          <Download size={17} />Скачать лаунчер · версия {client.version}
+        </a>
+      )}
     </>
   );
 }
