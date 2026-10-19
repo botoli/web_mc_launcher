@@ -13,6 +13,7 @@ import {
   Users,
   HardDrive,
   RotateCcw,
+  Upload,
 } from "lucide-react";
 import { api, errorMessage, json } from "@/lib/api";
 import type { BuildConfig, ClientInfo, DashboardData } from "@/lib/types";
@@ -38,6 +39,11 @@ export function BuildDashboard({
   const [saved, setSaved] = useState(initial.buildConfig);
   const [form, setForm] = useState(() => formFrom(saved));
   const [busy, setBusy] = useState(false);
+  const [launcher, setLauncher] = useState(client);
+  const [launcherFile, setLauncherFile] = useState<File | null>(null);
+  const [launcherVersion, setLauncherVersion] = useState(client.version);
+  const [launcherBusy, setLauncherBusy] = useState(false);
+  const [launcherNotice, setLauncherNotice] = useState({ message: "", kind: "success" as "error" | "success" });
   const [notice, setNotice] = useState({
     message: "",
     kind: "success" as "error" | "success",
@@ -94,6 +100,25 @@ export function BuildDashboard({
           "Не удалось скопировать адрес. Выделите и скопируйте его вручную.",
         kind: "error",
       });
+    }
+  }
+  async function uploadLauncher(event: React.FormEvent) {
+    event.preventDefault();
+    if (!launcherFile) return;
+    setLauncherBusy(true);
+    setLauncherNotice({ message: "", kind: "success" });
+    const body = new FormData();
+    body.append("launcher", launcherFile);
+    body.append("version", launcherVersion.trim());
+    try {
+      await api("/api/upload-launcher", { method: "POST", body });
+      setLauncher(await api<ClientInfo>("/api/client-info"));
+      setLauncherFile(null);
+      setLauncherNotice({ message: "Новая версия лаунчера опубликована.", kind: "success" });
+    } catch (error) {
+      setLauncherNotice({ message: errorMessage(error), kind: "error" });
+    } finally {
+      setLauncherBusy(false);
     }
   }
   return (
@@ -310,14 +335,14 @@ export function BuildDashboard({
             <Download size={24} />
             <h2>Лаунчер для игроков</h2>
             <p>
-              {client.size > 0
-                ? `Версия ${client.version} готова к скачиванию.`
+              {launcher.size > 0
+                ? `Версия ${launcher.version} готова к скачиванию.`
                 : "Файл лаунчера пока недоступен."}
             </p>
-            {client.size > 0 ? (
-              <a className="button secondary full-width" href={new URL(client.url).pathname}>
+            {launcher.size > 0 ? (
+              <a className="button secondary full-width" href={launcher.url} download>
                 <Download size={16} />
-                Скачать лаунчер
+                Скачать последнюю версию
               </a>
             ) : (
               <span className="badge neutral">Ожидаем файл</span>
@@ -325,6 +350,18 @@ export function BuildDashboard({
             <Link className="subtle-link" href="/profile">
               Открыть кабинет игрока <ArrowUpRight size={15} />
             </Link>
+            <form className="launcher-upload" onSubmit={uploadLauncher}>
+              <label htmlFor="launcher-file">ZIP лаунчера Windows</label>
+              <input id="launcher-file" type="file" accept=".zip" required disabled={launcherBusy}
+                onChange={event => setLauncherFile(event.target.files?.[0] || null)} />
+              <label htmlFor="launcher-version">Версия лаунчера</label>
+              <input id="launcher-version" value={launcherVersion} required maxLength={64} disabled={launcherBusy}
+                onChange={event => setLauncherVersion(event.target.value)} placeholder="Например, 2.0.2" />
+              <button className="button primary full-width" disabled={launcherBusy || !launcherFile || !launcherVersion.trim()}>
+                <Upload size={16} />{launcherBusy ? "Загрузка…" : "Опубликовать версию"}
+              </button>
+              <Notice {...launcherNotice} />
+            </form>
           </section>
         </aside>
       </div>

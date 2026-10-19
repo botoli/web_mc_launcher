@@ -116,7 +116,7 @@ function createDatabase(options = {}) {
     // Existing synchronous domain logic works on a request-local unit of work.
     // No successful API response is sent before its transaction commits.
     async function middleware(req, res, next) {
-        const api = req.path.startsWith('/api/') && !['/api/download-mods', '/api/download-configs'].includes(req.path);
+        const api = req.path.startsWith('/api/') && !['/api/download-mods', '/api/download-configs', '/api/download-launcher'].includes(req.path);
         if (!api) {
             try {
                 const state = await transaction(state => clone(state));

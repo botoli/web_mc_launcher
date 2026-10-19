@@ -2,6 +2,17 @@ import "server-only";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { Profile } from "./types";
+import type { ClientInfo } from "./types";
+
+export async function publicClientInfo(): Promise<ClientInfo | null> {
+  const backend = process.env.BACKEND_URL || `http://127.0.0.1:${process.env.PORT || 3000}`;
+  try {
+    const response = await fetch(`${backend}/api/client-info`, { cache: "no-store", signal: AbortSignal.timeout(10_000) });
+    return response.ok ? response.json() as Promise<ClientInfo> : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function serverApi<T>(path: string, returnTo = "/"): Promise<T> {
   const cookieStore = await cookies();

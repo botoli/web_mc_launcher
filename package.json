@@ -9,7 +9,7 @@
     "start": "node scripts/run.js start",
     "start:backend": "node apps/api/src/server.js",
     "typecheck": "tsc --noEmit -p apps/web/tsconfig.json",
-    "test": "node --test tests/error-pages.test.js tests/network.test.js tests/configs.test.js tests/database.test.js tests/telegram-auth.test.js tests/player-services.test.js tests/player-table.test.js tests/log-filters.test.js tests/web-api.test.js tests/navigation.test.js tests/integration.test.js",
+    "test": "node --test tests/error-pages.test.js tests/network.test.js tests/configs.test.js tests/database.test.js tests/telegram-auth.test.js tests/player-services.test.js tests/player-table.test.js tests/log-filters.test.js tests/web-api.test.js tests/navigation.test.js tests/launcher-release.test.js tests/integration.test.js",
     "test:telegram": "node --test tests/telegram-auth.test.js",
     "test:navigation": "node --test tests/navigation.test.js",
     "start:bot": "node apps/bot/bot.js",
