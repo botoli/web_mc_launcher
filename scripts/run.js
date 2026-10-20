@@ -3,6 +3,9 @@ const path = require('node:path');
 const fs = require('node:fs');
 
 function startLauncher({ mode = 'start', root = path.resolve(__dirname, '..'), frontendDirectory = path.join(root, 'apps/web') } = {}) {
+    // Explicit shell overrides win; a production URL in .env must not turn a
+    // default local dev session into an HTTPS redirect to an HTTP listener.
+    const explicitPublicURL = process.env.PUBLIC_URL;
     require('@next/env').loadEnvConfig(root, mode === 'dev');
     const frontendPort = process.env.FRONTEND_PORT || '3001';
     const backendPort = process.env.PORT || '3000';
@@ -15,7 +18,11 @@ function startLauncher({ mode = 'start', root = path.resolve(__dirname, '..'), f
         NODE_ENV: mode === 'dev' ? 'development' : 'production',
         BACKEND_URL: `http://127.0.0.1:${backendPort}`,
         FRONTEND_PORT: frontendPort,
-        NEXT_TELEMETRY_DISABLED: '1'
+        NEXT_TELEMETRY_DISABLED: '1',
+        ...(mode === 'dev' ? {
+            PUBLIC_URL: explicitPublicURL || `http://localhost:${backendPort}`,
+            HTTPS_ENABLED: 'false',
+        } : {})
     };
     const children = [
         spawn(process.execPath, [require.resolve('next/dist/bin/next'), mode, '.', '--hostname', '127.0.0.1', '--port', frontendPort], { cwd: frontendDirectory, env, stdio: 'inherit', windowsHide: true }),
