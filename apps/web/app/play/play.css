@@ -10,7 +10,7 @@
   --player-line: color-mix(in srgb, var(--player-accent) 22%, transparent);
   --player-soft: color-mix(in srgb, var(--player-accent) 10%, transparent);
   --player-shade-rgb: 8 13 8;
-  --player-background: url("/backgrounds/player-original-desktop-75f2dcf2da5a.webp");
+  --player-background: url("/backgrounds/player-original-desktop-411a032e761e.webp");
   --player-theme-duration: 850ms;
   position: relative;
   isolation: isolate;
@@ -31,9 +31,9 @@
   --player-text: #fff4e8;
   --player-muted: #d1bba5;
   --player-shade-rgb: 18 10 6;
-  --player-background: url("/backgrounds/player-halloween-desktop-24b0cbc0766f.webp");
+  --player-background: url("/backgrounds/player-halloween-desktop-ef5667efcab5.webp");
 }
-.player-site[data-theme="original"] { --player-background: url("/backgrounds/player-original-desktop-75f2dcf2da5a.webp"); }
+.player-site[data-theme="original"] { --player-background: url("/backgrounds/player-original-desktop-411a032e761e.webp"); }
 .player-backdrop, .player-shade { position: fixed; z-index: -1; inset: 0; pointer-events: none; }
 .player-backdrop { overflow: hidden; }
 .player-backdrop-layer, .player-backdrop-fallback { position: absolute; inset: 0; display: block; }

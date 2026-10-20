@@ -41,17 +41,13 @@ npm run dev
 
 ## Фоны
 
-Оригинальная тема использует `apps/web/public/backgrounds/player-original-desktop-75f2dcf2da5a.webp` — дневное изображение пользователя с лошадьми, персонажем и голубым небом (1672×941). Хеллоуинская версия создана встроенным imagegen редактированием этого же изображения: осенняя листва, сумерки и светящиеся тыквы с сохранением композиции.
+Обе темы используют предоставленные пользователем изображения леса с всадником: дневное (1920×1057) для оригинальной темы и осеннее с тыквами (1690×931) для Хеллоуина.
 
-Пути к актуальным версиям обеих тем находятся в `apps/web/lib/player-backgrounds.json`, файлы — в `apps/web/public/backgrounds/`. Хеллоуинские WebP экспортированы с качеством 80 для компьютера (1672×941) и 78 для телефона (480×854), effort 6. Мобильный вариант — центральный портретный кадр.
+Пути к актуальным версиям обеих тем находятся в `apps/web/lib/player-backgrounds.json`, файлы — в `apps/web/public/backgrounds/`. WebP экспортированы с качеством 82 для компьютера (исходное разрешение) и 78 для телефона (480×854), effort 6. Мобильный вариант — портретный кадр с центром на 69% ширины исходника, чтобы всадник оставался в кадре. Размеры файлов: около 124/151 КиБ для компьютера и 32/40 КиБ для телефона (оригинальная/хеллоуинская темы).
 
 Первая загрузка запрашивает только выбранную тему. Первая картинка имеет высокий приоритет загрузки; смена темы начинается после `img.decode()`. Новый фон плавно появляется за 850 мс поверх прежнего. Быстрые нажатия применяют последний выбор; при сетевой ошибке сохраняется предыдущий фон и доступна повторная попытка. При `prefers-reduced-motion: reduce` переход мгновенный. Без JavaScript остаётся статичный адаптивный оригинальный фон.
 
 Имена содержат SHA-256 файлов для обновления браузерного кеша. Для четырёх текущих WebP в Next.js настроен `Cache-Control: public, max-age=31536000, immutable`. Предыдущие версии изображений сохранены. Фоны центрированы на главном экране и в иллюстрации инструкции.
-
-Промпт хэллоуинской версии (встроенный imagegen; исходное изображение передано как edit target):
-
-> Use case: lighting-weather / precise-object-edit. Asset type: wide website background for a Minecraft players page. Edit target: the supplied Minecraft image with horses surrounding a small player. Create a Halloween version of THIS SAME image. Preserve the exact camera angle, wide 16:9 composition, all horses' positions, colors and recognizable markings, central player's identity and pose, stone hillside, birch trees and fence. Keep the Minecraft block geometry and shader-rendered style. Transform daylight into atmospheric blue-violet twilight, foliage into autumn orange and gold, add a few glowing carved block pumpkins along the fence and path, subtle ground mist and warm pumpkin lighting. Keep the horses and player clearly visible, tasteful seasonal mood. No text, no logos, no watermark, no interface. Return only the finished full-bleed landscape image.
 
 ## Проверка
 
