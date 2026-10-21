@@ -7,7 +7,6 @@
 @import "./styles/pages/build/sidebar.css";
 @import "./styles/components/upload.css";
 @import "./styles/components/search.css";
-@import "./styles/pages/resources.css";
 @import "./styles/components/feedback.css";
 @import "./styles/pages/players/base.css";
 @import "./styles/pages/profile.css";
@@ -24,3 +23,5 @@
 @import "./styles/pages/players/responsive.css";
 @import "./styles/components/multi-select.css";
 @import "./styles/pages/logs/responsive.css";
+
+@import "./styles/pages/resources.css";

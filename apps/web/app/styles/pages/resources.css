@@ -1,130 +1,161 @@
-.mod-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Build resources: prioritize the mod library and keep archive management nearby. */
+.mods-configs-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
 }
-.mod-list li {
+.mods-configs-layout > section { min-width: 0; }
+.mods-configs-layout .resource-heading {
   display: flex;
   align-items: center;
-  gap: 14px;
-  border-top: 1px solid #ffffff0c;
-  padding: 16px 0;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  min-height: 48px;
 }
-.mod-list li:last-child {
-  padding-bottom: 0;
+.mods-configs-layout .resource-heading h2 { font-size: 20px; }
+.mods-configs-layout .resource-heading p { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.mods-configs-layout .count { font-size: 12px; padding: 2px 8px; }
+.mods-configs-layout .button { min-height: 44px; }
+.mods-configs-layout .icon-button { width: 44px; height: 44px; }
+.mods-configs-layout .resource-upload {
+  padding: 0;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 160ms, background-color 160ms;
 }
-.file-icon {
-  width: 41px;
+.mods-configs-layout .resource-picker {
+  border: 0;
+  width: 100%;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 24px;
+  gap: 16px;
+  justify-content: flex-start;
+}
+.mods-configs-layout .resource-picker:focus-visible { outline-offset: -4px; }
+.resource-picker:hover:not(:disabled) { background: #ac88f60a; }
+.resource-picker:active:not(:disabled) { background: #ac88f618; }
+.resource-picker-copy { min-width: 0; }
+.resource-picker-copy > strong { display: block; font-size: 14px; margin-bottom: 4px; }
+.resource-picker-copy > span { display: block; font-size: 12px; color: var(--muted); }
+.resource-picker-copy .picker-link { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.mods-configs-layout .resource-picker small { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.mods-configs-layout .upload-icon {
+  width: 44px;
   height: 44px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+.resource-selection {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 12px;
+  padding: 20px;
+  align-items: center;
+}
+.resource-file strong { display: block; overflow-wrap: anywhere; font-size: 13px; }
+.resource-file small { display: block; margin-top: 4px; }
+.resource-selection .resource-submit, .replacement-note { grid-column: 1 / -1; }
+.resource-selection .resource-submit { min-width: 0; white-space: normal; }
+.replacement-note { font-size: 12px; color: var(--muted); }
+.mods-configs-layout .mods-panel { padding: 0; max-height: none; overflow: hidden; }
+.mods-toolbar { display: flex; align-items: center; gap: 12px; padding: 16px; }
+.mods-toolbar .search-field { min-width: 0; flex: 1; }
+.mods-toolbar .search-field input { font-size: 13px; min-height: 44px; padding-right: 44px; }
+.mods-toolbar input[type="search"]::-webkit-search-cancel-button { display: none; }
+.mods-toolbar .search-clear { position: absolute; right: 0; top: 0; }
+.mods-toolbar select { font-size: 12px; width: 164px; min-height: 44px; }
+.mod-list-caption {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 20px;
+  color: var(--muted);
+  font-size: 12px;
+  background: #ffffff03;
+  border-top: 1px solid #ffffff0c;
+  border-bottom: 1px solid #ffffff0c;
+}
+.mod-list { list-style: none; margin: 0; padding: 0; }
+.mods-configs-layout .mods-panel .mod-list {
+  max-height: min(640px, max(280px, calc(100dvh - 530px)));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  overscroll-behavior: contain;
+}
+.mods-configs-layout .mod-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #ffffff0c;
+  transition: background-color 160ms;
+}
+.mods-configs-layout .mod-list li:last-child { border-bottom: 0; }
+.mods-configs-layout .mod-list li:hover { background: #ffffff03; }
+.file-icon {
+  width: 36px;
+  height: 40px;
   display: grid;
   place-items: center;
   color: var(--accent);
   background: #ac88f60b;
   border: 1px solid #ac88f61c;
-  border-radius: 9px;
+  border-radius: 8px;
   flex-shrink: 0;
 }
-.mod-name {
-  flex: 1;
-  min-width: 0;
+.mod-name { flex: 1; min-width: 0; }
+.mods-configs-layout .mod-name strong { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.mods-configs-layout .mod-name small { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.mods-configs-layout .icon-button:hover:not(:disabled) { background: #ffffff0c; color: var(--text); }
+.mods-configs-layout .delete-button:hover:not(:disabled) { background: #ffaaa910; color: var(--danger); }
+.mods-configs-layout .empty-state { padding: 40px 24px; color: var(--muted); }
+.mods-configs-layout .configs-panel { padding: 24px; }
+.configs-panel .resource-heading > svg { color: var(--accent); }
+.config-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin: 0 0 20px; }
+.config-status.published { color: var(--mint); }
+.mods-configs-layout .configs-panel .resource-picker { flex-direction: column; text-align: center; padding: 24px 16px; gap: 12px; }
+.config-empty { color: var(--muted); font-size: 13px; line-height: 1.8; }
+.config-current-heading { padding-top: 4px; }
+.config-current-heading h3 { font-size: 14px; }
+.config-archive-name { display: flex; align-items: center; gap: 12px; color: var(--accent); }
+.config-archive-name strong { overflow-wrap: anywhere; min-width: 0; font-size: 13px; color: var(--text); }
+.config-details { margin: 20px 0; font-size: 12px; }
+.config-details > div { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.config-details dt { color: var(--muted); }
+.config-details dd { margin: 0; text-align: right; }
+.configs-panel > .button { width: 100%; }
+.configs-hint { color: var(--muted); font-size: 12px; line-height: 1.8; margin-top: 20px; padding-top: 16px; border-top: 1px solid #ffffff0c; }
+.configs-hint summary { cursor: pointer; padding: 8px 0; min-height: 44px; color: var(--text); }
+.configs-hint summary:hover { color: var(--accent); }
+.configs-hint p { margin-top: 12px; }
+.configs-hint code { color: var(--text); overflow-wrap: anywhere; }
+@media (max-width: 1200px) {
+  .mods-configs-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; }
+  .mods-configs-layout .configs-panel { padding: 20px; }
+  .mods-configs-layout .resource-heading { flex-wrap: wrap; }
 }
-.mod-name strong {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
+@media (max-width: 1000px) {
+  .mods-configs-layout { grid-template-columns: minmax(0, 1fr); }
+  .mods-configs-layout .configs-panel .resource-picker { flex-direction: row; text-align: left; }
 }
-.mod-name small {
-  font-size: 10px;
-  color: var(--subtle);
+@media (max-width: 700px) {
+  .mods-configs-layout .mods-panel .mod-list { max-height: 480px; }
+  .mods-configs-layout .resource-heading { gap: 12px; margin-bottom: 16px; }
+  .mods-configs-layout .resource-picker { flex-direction: row; text-align: left; padding: 20px 16px; }
+  .mods-toolbar { flex-wrap: wrap; padding: 12px; }
+  .mods-toolbar .search-field { flex-basis: 100%; }
+  .mods-toolbar select { width: 100%; }
+  .mods-configs-layout .mod-list li { gap: 4px; padding: 12px 8px; }
+  .mods-configs-layout .mod-name { padding: 0 4px; }
+  .mods-configs-layout .mod-name strong { font-size: 12px; }
+  .mods-configs-layout .file-icon { display: none; }
+  .mod-list-caption { padding: 12px; }
 }
-.mods-configs-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-}
-.mods-configs-layout > section {
-  min-width: 0;
-  position: relative;
-}
-.mods-configs-layout .resource-heading {
-  min-height: 46px;
-}
-.mods-configs-layout .upload-panel {
-  padding: 20px;
-  margin-bottom: 18px;
-}
-.mods-configs-layout .dropzone {
-  padding: 10px 0;
-  gap: 14px;
-}
-.mods-configs-layout .dropzone h2,
-.mods-configs-layout .dropzone h3 {
-  font-size: 15px;
-}
-.mods-configs-layout .dropzone p {
-  font-size: 11px;
-}
-.mods-configs-layout .upload-icon {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-}
-.mods-configs-layout .selected-file {
-  flex-wrap: wrap;
-}
-.mods-configs-layout .selected-file > .button {
-  width: 100%;
-}
-.mods-configs-layout .mods-panel .section-heading {
-  flex-wrap: wrap;
-}
-.mods-configs-layout .mods-panel .search-field {
-  flex: 1;
-}
-.config-archive-name {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--accent);
-}
-.config-archive-name strong {
-  overflow-wrap: anywhere;
-  min-width: 0;
-  font-size: 13px;
-  color: var(--text);
-}
-.config-details {
-  margin: 18px 0;
-  font-size: 11px;
-}
-.config-details > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-}
-.config-details dt {
-  color: var(--muted);
-}
-.config-details dd {
-  margin: 0;
-  text-align: right;
-}
-.configs-hint {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.8;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #ffffff0c;
-}
-.configs-panel .empty-state {
-  padding: 24px 10px;
-}
-@media (max-width: 1100px) {
-  .mods-configs-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .mods-configs-layout *, .mods-configs-layout *::before, .mods-configs-layout *::after { animation: none !important; transition: none !important; }
 }
