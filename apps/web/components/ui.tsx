@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, Check, ShieldCheck, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { cloneElement, useEffect, useRef } from "react";
 import type { PlayerStatus } from "@/lib/types";
 
 export function Notice({
@@ -32,13 +32,18 @@ export function Field({
   label: string;
   hint?: string;
   inputId?: string;
-  children: React.ReactElement<{ id?: string }>;
+  children: React.ReactElement<{ id?: string; "aria-describedby"?: string }>;
 }) {
+  const id = inputId || children.props.id;
+  const hintId = hint && id ? `${id}-hint` : undefined;
   return (
     <div className="field">
-      <label htmlFor={inputId || children.props.id}>{label}</label>
-      {children}
-      {hint && <small>{hint}</small>}
+      <label htmlFor={id}>{label}</label>
+      {cloneElement(children, {
+        id,
+        "aria-describedby": [children.props["aria-describedby"], hintId].filter(Boolean).join(" ") || undefined,
+      })}
+      {hint && <small id={hintId}>{hint}</small>}
     </div>
   );
 }

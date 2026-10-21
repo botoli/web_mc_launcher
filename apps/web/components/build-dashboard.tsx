@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Check,
@@ -14,11 +14,12 @@ import {
   HardDrive,
   RotateCcw,
   Upload,
+  ChevronDown,
+  CircleAlert,
 } from "lucide-react";
 import { api, errorMessage, json } from "@/lib/api";
 import type { BuildConfig, ClientInfo, DashboardData } from "@/lib/types";
 import { Field, Notice, PageHeading } from "./ui";
-import { VoxelScene } from "./voxel-scene";
 
 function formFrom(config: BuildConfig) {
   return {
@@ -36,6 +37,7 @@ export function BuildDashboard({
   initial: DashboardData;
   client: ClientInfo;
 }) {
+  const fileInput = useRef<HTMLInputElement>(null);
   const [saved, setSaved] = useState(initial.buildConfig);
   const [form, setForm] = useState(() => formFrom(saved));
   const [busy, setBusy] = useState(false);
@@ -70,6 +72,7 @@ export function BuildDashboard({
   }
   async function save(event: React.FormEvent) {
     event.preventDefault();
+    if (busy || !dirty) return;
     setBusy(true);
     setNotice({ message: "", kind: "success" });
     try {
@@ -104,7 +107,7 @@ export function BuildDashboard({
   }
   async function uploadLauncher(event: React.FormEvent) {
     event.preventDefault();
-    if (!launcherFile) return;
+    if (!launcherFile || launcherBusy) return;
     setLauncherBusy(true);
     setLauncherNotice({ message: "", kind: "success" });
     const body = new FormData();
@@ -114,6 +117,7 @@ export function BuildDashboard({
       await api("/api/upload-launcher", { method: "POST", body });
       setLauncher(await api<ClientInfo>("/api/client-info"));
       setLauncherFile(null);
+      if (fileInput.current) fileInput.current.value = "";
       setLauncherNotice({ message: "Новая версия лаунчера опубликована.", kind: "success" });
     } catch (error) {
       setLauncherNotice({ message: errorMessage(error), kind: "error" });
@@ -122,10 +126,10 @@ export function BuildDashboard({
     }
   }
   return (
-    <>
+    <div className="build-dashboard">
       <PageHeading
-        title="Твоя следующая сборка"
-        description="Настрой мир, в который игроки захотят вернуться."
+        title="Сборка сервера"
+        description="Версии, подключение и лаунчер для твоих игроков."
         action={
           <span className="badge confirmed">
             <span className="status-dot" />
@@ -148,60 +152,66 @@ export function BuildDashboard({
           </div>
           <button
             className="server-address"
+            type="button"
+            disabled={!saved.servers[0]?.address}
+            title={copied ? "Адрес скопирован" : "Скопировать адрес сервера"}
             onClick={copyAddress}
             aria-label="Скопировать адрес игрового сервера"
           >
             <Server size={16} />
             <span>{saved.servers[0]?.address || "Адрес не указан"}</span>
             {copied ? <Check size={16} /> : <Copy size={16} />}
+            <span className="copy-label">{copied ? "Скопировано" : "Копировать"}</span>
           </button>
           <span className="sr-only" role="status">
             {copied ? "Адрес скопирован" : ""}
           </span>
         </div>
-        <VoxelScene />
-      </section>
-      <div className="stats-strip">
-        <Link href="/players">
-          <Users size={20} />
-          <span>
-            <strong>{initial.userCount}</strong> игроков зарегистрировано
-          </span>
-          <ArrowUpRight size={16} />
-        </Link>
-        <Link href="/mods">
-          <Blocks size={20} />
-          <span>
-            <strong>{initial.mods.length}</strong> модов в сборке
-          </span>
-          <ArrowUpRight size={16} />
-        </Link>
-        <div>
-          <HardDrive size={20} />
-          <span>
-            <strong>
-              {(saved.maxMemory / 1024).toLocaleString("ru-RU", {
-                maximumFractionDigits: 1,
-              })}{" "}
-              ГБ
-            </strong>{" "}
-            максимальная память
-          </span>
+        <div className="stats-strip" aria-label="Показатели сборки">
+          <Link href="/players">
+            <Users size={20} />
+            <span>
+              <strong>{initial.userCount}</strong> игроков
+            </span>
+            <ArrowUpRight size={16} />
+          </Link>
+          <Link href="/mods">
+            <Blocks size={20} />
+            <span>
+              <strong>{initial.mods.length}</strong> модов в сборке
+            </span>
+            <ArrowUpRight size={16} />
+          </Link>
+          <div>
+            <HardDrive size={20} />
+            <span>
+              <strong>
+                {(saved.maxMemory / 1024).toLocaleString("ru-RU", {
+                  maximumFractionDigits: 1,
+                })}{" "}
+                ГБ
+              </strong>{" "}
+              лимит памяти
+            </span>
+          </div>
         </div>
-      </div>
+      </section>
       <div className="build-layout">
-        <section className="panel">
+        <section className="panel build-settings" aria-labelledby="build-settings-title">
           <div className="section-heading">
             <div>
-              <h2>Настройки сборки</h2>
-              <p>Единая конфигурация для всех игроков.</p>
+              <h2 id="build-settings-title">Настройки сборки</h2>
+              <p>Версии и адрес подключения для всех игроков.</p>
             </div>
-            {dirty && <span className="unsaved">Есть изменения</span>}
+            <button form="build-settings-form" className="button primary" disabled={!dirty || busy} title={!dirty ? "Измените настройки, чтобы сохранить сборку" : undefined}>
+              <Save size={17} />
+              {busy ? "Сохранение…" : "Сохранить сборку"}
+            </button>
           </div>
-          <form onSubmit={save}>
+          <form id="build-settings-form" onSubmit={save} aria-busy={busy}>
             <fieldset disabled={busy} className="form-fieldset">
               <div className="form-section">
-                <h3>Версия и окружение</h3>
+                <h3>Версии и окружение</h3>
                 <div className="form-grid">
                   <Field label="Версия Minecraft">
                     <select
@@ -255,7 +265,7 @@ export function BuildDashboard({
                       placeholder="Например, 21.1.248"
                     />
                   </Field>
-                  <Field label="Версия Java">
+                  <Field label="Версия Java" hint="Основная версия, например 21.">
                     <input
                       id="javaVersion"
                       type="number"
@@ -278,6 +288,9 @@ export function BuildDashboard({
                     >
                       <input
                         id="serverIP"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
                         required
                         value={form.serverIP}
                         onChange={(e) => update("serverIP", e.target.value)}
@@ -289,7 +302,8 @@ export function BuildDashboard({
             </fieldset>
             <Notice {...notice} />
             <div className="form-footer">
-              <span>
+              <span className={`save-status ${dirty ? "is-dirty" : ""}`} role="status">
+                {dirty ? <CircleAlert size={16} aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
                 {dirty
                   ? "Изменения ещё не сохранены"
                   : "Все изменения сохранены"}
@@ -309,15 +323,46 @@ export function BuildDashboard({
                     Отменить
                   </button>
                 )}
-                <button className="button primary" disabled={!dirty || busy}>
-                  <Save size={17} />
-                  {busy ? "Сохранение…" : "Сохранить сборку"}
-                </button>
               </div>
             </div>
           </form>
         </section>
         <aside className="build-aside">
+          <section className="panel client-panel">
+            <Download size={24} />
+            <h2>Лаунчер для игроков</h2>
+            <p>
+              {launcher.size > 0
+                ? `Версия ${launcher.version} готова к скачиванию.`
+                : "Файл лаунчера пока недоступен."}
+            </p>
+            {launcher.size > 0 ? (
+              <a className="button secondary full-width" href={launcher.url} download>
+                <Download size={16} />
+                Скачать лаунчер
+              </a>
+            ) : (
+              <span className="badge neutral">Ожидаем файл</span>
+            )}
+            <Link className="subtle-link" href="/profile">
+              Открыть кабинет игрока <ArrowUpRight size={15} />
+            </Link>
+            <details className="launcher-publish">
+              <summary>Опубликовать обновление <ChevronDown size={16} aria-hidden="true" /></summary>
+              <form className="launcher-upload" onSubmit={uploadLauncher} aria-busy={launcherBusy}>
+                <label htmlFor="launcher-file">ZIP лаунчера Windows</label>
+                <input ref={fileInput} id="launcher-file" type="file" accept=".zip" required disabled={launcherBusy}
+                  onChange={event => setLauncherFile(event.target.files?.[0] || null)} />
+                <label htmlFor="launcher-version">Версия лаунчера</label>
+                <input id="launcher-version" value={launcherVersion} required maxLength={64} disabled={launcherBusy}
+                  onChange={event => setLauncherVersion(event.target.value)} placeholder="Например, 2.0.2" />
+                <button className="button secondary full-width" disabled={launcherBusy || !launcherFile || !launcherVersion.trim()}>
+                  <Upload size={16} />{launcherBusy ? "Загрузка…" : "Опубликовать версию"}
+                </button>
+                <Notice {...launcherNotice} />
+              </form>
+            </details>
+          </section>
           <section className="sync-note">
             <span className="round-icon">
               <Check size={22} />
@@ -331,41 +376,9 @@ export function BuildDashboard({
               Управлять модами <ArrowUpRight size={16} />
             </Link>
           </section>
-          <section className="panel client-panel">
-            <Download size={24} />
-            <h2>Лаунчер для игроков</h2>
-            <p>
-              {launcher.size > 0
-                ? `Версия ${launcher.version} готова к скачиванию.`
-                : "Файл лаунчера пока недоступен."}
-            </p>
-            {launcher.size > 0 ? (
-              <a className="button secondary full-width" href={launcher.url} download>
-                <Download size={16} />
-                Скачать последнюю версию
-              </a>
-            ) : (
-              <span className="badge neutral">Ожидаем файл</span>
-            )}
-            <Link className="subtle-link" href="/profile">
-              Открыть кабинет игрока <ArrowUpRight size={15} />
-            </Link>
-            <form className="launcher-upload" onSubmit={uploadLauncher}>
-              <label htmlFor="launcher-file">ZIP лаунчера Windows</label>
-              <input id="launcher-file" type="file" accept=".zip" required disabled={launcherBusy}
-                onChange={event => setLauncherFile(event.target.files?.[0] || null)} />
-              <label htmlFor="launcher-version">Версия лаунчера</label>
-              <input id="launcher-version" value={launcherVersion} required maxLength={64} disabled={launcherBusy}
-                onChange={event => setLauncherVersion(event.target.value)} placeholder="Например, 2.0.2" />
-              <button className="button primary full-width" disabled={launcherBusy || !launcherFile || !launcherVersion.trim()}>
-                <Upload size={16} />{launcherBusy ? "Загрузка…" : "Опубликовать версию"}
-              </button>
-              <Notice {...launcherNotice} />
-            </form>
-          </section>
         </aside>
       </div>
-    </>
+    </div>
   );
 }
 function BoxLabel() {
