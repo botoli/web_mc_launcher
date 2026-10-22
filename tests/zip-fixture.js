@@ -12,7 +12,7 @@ async function makeZip(entries) {
     return Buffer.concat(chunks);
 }
 
-async function readZip(buffer) {
+async function readZip(buffer, encoding = 'utf8') {
     const zip = await new Promise((resolve, reject) => yauzl.fromBuffer(buffer, { lazyEntries: true }, (error, value) => error ? reject(error) : resolve(value)));
     return new Promise((resolve, reject) => {
         const files = {};
@@ -24,7 +24,7 @@ async function readZip(buffer) {
                 const chunks = [];
                 stream.on('error', reject);
                 stream.on('data', chunk => chunks.push(chunk));
-                stream.on('end', () => { files[entry.fileName] = Buffer.concat(chunks).toString('utf8'); zip.readEntry(); });
+                stream.on('end', () => { files[entry.fileName] = encoding === null ? Buffer.concat(chunks) : Buffer.concat(chunks).toString(encoding); zip.readEntry(); });
             });
         });
         zip.on('end', () => resolve(files));

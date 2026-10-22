@@ -40,7 +40,7 @@ async function main() {
 
   const MODS_DIR = path.join(DATA_DIR, "mods");
   const CLIENTS_DIR = path.join(DATA_DIR, "clients");
-  const launcherReleases = require('./launcher/releases').createLauncherReleases(DATA_DIR, publicURL);
+  const launcherReleases = require('./launcher/releases').createLauncherReleases(DATA_DIR);
 
   if (
     fs.existsSync(path.join(DATA_DIR, "users.json")) &&
@@ -80,7 +80,9 @@ async function main() {
     servers: [{ name: "MinecraftServer", address: "45.157.232.7:32761" }],
     launcherServer: publicURL,
   };
-  await database.transaction((state) => {
+  await database.transaction(async (state) => {
+    const catalog = state.settings.launcherReleases;
+    await launcherReleases.ensureCompatibility(catalog?.versions?.[catalog.current]);
     state.settings.build ||= DEFAULT_BUILD_CONFIG;
     state.settings.server ||= {};
     state.settings.client ||= {
@@ -238,14 +240,22 @@ async function main() {
   });
 
   app.get('/download/launcher/:archive', async (req, res, next) => {
-    const version = req.params.archive.replace(/\.zip$/, '');
-    if (`${version}.zip` !== req.params.archive) return res.sendStatus(404);
     try {
-      const release = await database.transaction(state => state.settings.launcherReleases?.versions?.[version]);
-      const file = launcherReleases.file(version);
-      if (!release || !file || !fs.existsSync(file)) return res.sendStatus(404);
+      const selected = await database.transaction(state => {
+        const versions = state.settings.launcherReleases?.versions || {};
+        for (const release of Object.values(versions)) {
+          for (const legacy of [false, true]) {
+            const variant = legacy ? release.legacy : release;
+            if (variant?.file === req.params.archive &&
+                launcherReleases.url(release.version, legacy) === `/download/launcher/${req.params.archive}`)
+              return { version: release.version, legacy };
+          }
+        }
+      });
+      const file = selected && launcherReleases.file(selected.version, selected.legacy);
+      if (!file || !fs.existsSync(file)) return res.sendStatus(404);
       res.set('Cache-Control', 'public, max-age=31536000, immutable');
-      res.download(file, `${version}.zip`);
+      res.download(file, req.params.archive);
     } catch (error) { next(error); }
   });
   app.use("/download", express.static(CLIENTS_DIR));
@@ -853,14 +863,17 @@ async function main() {
   });
 
   app.get('/api/launcher-update', (req, res) => {
+    res.vary('User-Agent');
+    res.set('Cache-Control', 'no-store');
     if (req.query.platform !== launcherReleases.platform)
       return res.status(400).json({ error: 'Поддерживается только platform=windows-x64.' });
     const catalog = database.settings().launcherReleases;
     const release = catalog?.versions?.[catalog.current];
-    if (!release || !fs.existsSync(launcherReleases.file(release.version)))
+    const variant = launcherReleases.select(release, req.get('User-Agent'));
+    const legacy = variant === release?.legacy;
+    if (!variant || !fs.existsSync(launcherReleases.file(release.version, legacy)))
       return res.status(404).json({ error: 'Обновление лаунчера пока не опубликовано.' });
-    res.set('Cache-Control', 'no-store');
-    res.json({ version: release.version, url: launcherReleases.url(release.version), sha256: release.sha256, size: release.size });
+    res.json({ version: release.version, url: launcherReleases.url(release.version, legacy), sha256: variant.sha256, size: variant.size });
   });
 
   app.get("/api/download-launcher", (req, res) => {

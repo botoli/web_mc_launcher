@@ -371,9 +371,9 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
       ).json();
       assert.equal(first.version, "2.0.0");
       assert.equal(first.size, firstZip.length);
-      assert.equal(new URL(first.url).pathname, "/download/launcher/2.0.0.zip");
+      assert.equal(new URL(first.url, app.baseURL).pathname, "/download/launcher/2.0.0.zip");
       assert.deepEqual(
-        Buffer.from(await (await fetch(first.url)).arrayBuffer()),
+        Buffer.from(await (await fetch(new URL(first.url, app.baseURL))).arrayBuffer()),
         firstZip,
       );
       assert.match(
@@ -399,7 +399,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
         "2.0.1",
       );
       assert.deepEqual(
-        Buffer.from(await (await fetch(first.url)).arrayBuffer()),
+        Buffer.from(await (await fetch(new URL(first.url, app.baseURL))).arrayBuffer()),
         firstZip,
       );
       assert.deepEqual(
