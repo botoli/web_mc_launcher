@@ -20,7 +20,7 @@ test(
       });
     const zip = (content) =>
       makeZip([
-        ["Nevermore", content],
+        ["Nevermore.exe", content],
         ["README.txt", "Install instructions"],
       ]);
     const form = (version, content, name = "launcher.zip") => {
@@ -82,7 +82,7 @@ test(
           form(
             "0.1.1",
             await makeZip([
-              ["nested/Nevermore", "x"],
+              ["nested/Nevermore.exe", "x"],
               ["README.txt", "y"],
             ]),
           ),

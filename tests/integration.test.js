@@ -322,7 +322,7 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
       assert.equal(await oldDownload.text(), "Test launcher fixture");
       const launcherZip = (contents) =>
         makeZip([
-          ["Nevermore", contents],
+          ["Nevermore.exe", contents],
           ["README.txt", "Installation instructions"],
         ]);
       const form = (version, contents) => {
@@ -507,13 +507,11 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
         ).status,
         403,
       );
-      await page
-        .locator("#configs-file")
-        .setInputFiles({
-          name: "settings.zip",
-          mimeType: "application/zip",
-          buffer: zip,
-        });
+      await page.locator("#configs-file").setInputFiles({
+        name: "settings.zip",
+        mimeType: "application/zip",
+        buffer: zip,
+      });
       await page
         .getByRole("button", { name: "Загрузить конфиги", exact: true })
         .click();
@@ -561,13 +559,11 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
         "settings.zip",
       );
       const replacement = await makeZip([["example.toml", "value=2"]]);
-      await page
-        .locator("#configs-file")
-        .setInputFiles({
-          name: "replacement.zip",
-          mimeType: "application/zip",
-          buffer: replacement,
-        });
+      await page.locator("#configs-file").setInputFiles({
+        name: "replacement.zip",
+        mimeType: "application/zip",
+        buffer: replacement,
+      });
       await expect(
         page.locator(".configs-section .selected-file"),
       ).toContainText("Заменит текущий набор");
@@ -585,13 +581,11 @@ test("Next.js UI and preserved Express API", { timeout: 180000 }, async (t) => {
       assert.deepEqual(await download("/api/download-configs"), {
         "configs/example.toml": "value=2",
       });
-      await page
-        .locator("#configs-file")
-        .setInputFiles({
-          name: "broken.zip",
-          mimeType: "application/zip",
-          buffer: Buffer.from("broken"),
-        });
+      await page.locator("#configs-file").setInputFiles({
+        name: "broken.zip",
+        mimeType: "application/zip",
+        buffer: Buffer.from("broken"),
+      });
       await page
         .getByRole("button", { name: "Загрузить конфиги", exact: true })
         .click();

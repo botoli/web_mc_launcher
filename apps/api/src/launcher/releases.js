@@ -32,13 +32,13 @@ async function validateZip(buffer) {
       zip.on("entry", (entry) => {
         const name = entry.fileName;
         if (
-          !["Nevermore", "README.txt"].includes(name) ||
+          !["Nevermore.exe", "README.txt"].includes(name) ||
           found.has(name) ||
           entry.generalPurposeBitFlag & 1 ||
           entry.uncompressedSize > MAX_SIZE
         )
           return reject(
-            invalid("ZIP должен содержать Nevermore и README.txt в корне."),
+            invalid("ZIP должен содержать Nevermore.exe и README.txt в корне."),
           );
         found.add(name);
         zip.openReadStream(entry, (error, stream) => {
@@ -65,7 +65,9 @@ async function validateZip(buffer) {
         found.size === 2
           ? resolve()
           : reject(
-              invalid("ZIP должен содержать Nevermore и README.txt в корне."),
+              invalid(
+                "ZIP должен содержать Nevermore.exe и README.txt в корне.",
+              ),
             ),
       );
       zip.readEntry();

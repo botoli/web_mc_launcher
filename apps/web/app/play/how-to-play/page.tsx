@@ -25,7 +25,7 @@ const steps = [
     text: (
       <>
         Скачай ZIP-архив для Windows x64 и распакуй его в отдельную папку.
-        Запусти <code>Nevermore</code> из этой папки.
+        Запусти <code>Nevermore.exe</code> из этой папки.
       </>
     ),
     detail: (

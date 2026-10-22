@@ -504,7 +504,7 @@ test(
     ).json();
     for (const version of ["0.1.1", "0.1.2"]) {
       const zip = await makeZip([
-        ["Nevermore", `MZ${version}`],
+        ["Nevermore.exe", `MZ${version}`],
         ["README.txt", "Instructions"],
       ]);
       const form = new FormData();
